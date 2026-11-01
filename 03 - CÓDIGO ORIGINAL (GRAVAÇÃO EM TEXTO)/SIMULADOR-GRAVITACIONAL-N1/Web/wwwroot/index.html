@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4f0">
+  <title>Órbita — Laboratório gravitacional</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="Órbita, página inicial"><span class="brand-icon">◎</span> órbita<span class="brand-tag">LAB</span></a>
+    <div class="header-middle"><span class="live-dot"></span> LABORATÓRIO GRAVITACIONAL <span class="header-divider"></span> SIMULAÇÃO 2D</div>
+    <button class="button button-quiet" id="help-button"><span aria-hidden="true">ⓘ</span> Como funciona</button>
+  </header>
+
+  <main>
+    <section class="page-heading">
+      <div><div class="eyebrow">UM PEQUENO UNIVERSO. INFINITAS POSSIBILIDADES.</div><h1>A gravidade em movimento<span>.</span></h1><p>Crie corpos, acompanhe trajetórias e observe as leis de Newton em ação.</p></div>
+      <button class="button button-dark" id="new-button"><span aria-hidden="true">＋</span> Novo universo</button>
+    </section>
+
+    <div class="workspace">
+      <aside class="configuration panel">
+        <div class="section-heading"><h2>Seu universo</h2><span class="small-tag">01</span></div>
+        <label class="field-label" for="body-count">Quantidade de corpos</label><input id="body-count" type="number" min="1" value="12">
+        <p class="field-note">Corpos com massas, densidades, posições e velocidades aleatórias, gerados pelo código original.</p>
+        <div class="generation-ranges"><div><span>Massa</span><strong>10²² – 10²⁵ kg</strong></div><div><span>Densidade</span><strong>3.000 – 6.000 kg/m³</strong></div><div><span>Posição X / Y</span><strong>±5 × 10⁹ m</strong></div><div><span>Velocidade X / Y</span><strong>±200 m/s</strong></div></div>
+        <button class="button button-outline full-width" id="generate-button"><span aria-hidden="true">↻</span> Gerar corpos aleatórios</button>
+        <div class="section-rule"></div>
+        <div class="section-heading"><h2>Simulação</h2><span class="subtle-icon">⌁</span></div>
+        <label class="field-label" for="iterations">Limite de iterações</label><input id="iterations" type="number" min="1" max="1000000" value="10000">
+        <label class="field-label" for="timestep">Passo de tempo <span>s</span></label><input id="timestep" type="number" min="0.001" max="86400" step="any" value="3600"><p class="field-note">Tempo físico avançado a cada iteração.</p>
+        <label class="field-label" for="speed">Velocidade de reprodução <span id="speed-label">1×</span></label><input id="speed" type="range" min="1" max="10" value="1"><div class="range-labels"><span>1×</span><span>10×</span></div>
+        <div class="section-rule"></div>
+        <div class="section-heading"><h2>Visualização</h2><span class="subtle-icon">◉</span></div>
+        <label class="toggle-row" for="trails">Trajetórias <input type="checkbox" class="switch" id="trails" checked></label>
+        <label class="toggle-row" for="names">Nomes dos corpos <input type="checkbox" class="switch" id="names" checked></label>
+        <label class="toggle-row" for="grid">Grade de referência <input type="checkbox" class="switch" id="grid" checked></label>
+        <div class="physics-note"><span>F = G · m₁m₂ / r²</span><p>Gravitação universal de Newton<br>G = 6,674184 × 10⁻¹¹ m³ kg⁻¹ s⁻²</p></div>
+      </aside>
+
+      <section class="simulation-column">
+        <div class="viewport" id="viewport">
+          <canvas id="universe-canvas" aria-label="Visualização dos corpos gravitacionais. Selecione um corpo na lista para consultar suas propriedades."></canvas>
+          <div class="viewport-top"><div class="viewport-title"><span class="live-dot"></span><span id="universe-title">Universo aleatório</span><span class="viewport-2d">2D</span></div><span id="status" class="status">PAUSADO</span></div>
+          <div class="viewport-caption"><span class="eyebrow">ESPAÇO DE SIMULAÇÃO</span><span>Arraste para mover · Role para ampliar</span></div>
+          <div class="canvas-tools"><button id="zoom-in" title="Ampliar" aria-label="Ampliar">＋</button><button id="zoom-out" title="Reduzir" aria-label="Reduzir">−</button><span></span><button id="fit-button" title="Enquadrar todos os corpos" aria-label="Enquadrar todos os corpos">⛶</button></div>
+          <div class="scale-indicator"><span></span><label id="scale-label">1 × 10⁹ m</label></div>
+          <div class="canvas-coordinate">REFERENCIAL INERCIAL <span>X / Y</span></div>
+          <div class="viewport-error" id="viewport-error" hidden>Não foi possível carregar o universo.<button class="button button-outline" id="retry-button">Tentar novamente</button></div>
+        </div>
+        <div class="playback panel">
+          <div class="playback-buttons"><button class="icon-button" id="reset-button" title="Restaurar estado inicial" aria-label="Restaurar estado inicial">↺</button><button class="button button-accent" id="play-button" disabled><span aria-hidden="true">▶</span> Iniciar simulação</button><button class="icon-button" id="step-button" title="Avançar uma iteração" aria-label="Avançar uma iteração">▸|</button></div>
+          <div class="iteration-progress"><div><span>Iteração <strong id="iteration-current">0</strong></span><span id="iteration-total">/ 10.000</span></div><progress id="progress" value="0" max="10000" aria-label="Progresso das iterações"></progress></div>
+          <span class="keyboard-hint"><kbd>espaço</kbd> para pausar</span>
+        </div>
+        <div class="metrics">
+          <div class="metric panel"><span class="metric-label">CORPOS NO UNIVERSO <span>◌</span></span><div><strong id="metric-count">—</strong><span>corpos</span></div></div>
+          <div class="metric panel"><span class="metric-label">TEMPO SIMULADO <span>◷</span></span><div><strong id="metric-time">0</strong><span id="time-unit">dias</span></div></div>
+          <div class="metric panel"><span class="metric-label">MASSA TOTAL <span>⊕</span></span><div><strong id="metric-mass">—</strong><span>kg</span></div></div>
+        </div>
+        <div class="observation"><span>✧</span><p>Todo corpo atrai outro corpo. Pequenas mudanças nas condições iniciais podem transformar todo o universo.</p></div>
+      </section>
+
+      <aside class="bodies-panel panel">
+        <div class="section-heading"><h2>Corpos do universo <span class="count-badge" id="body-badge">0</span></h2><button class="small-icon-button" id="add-body" title="Adicionar corpo" aria-label="Adicionar corpo">＋</button></div>
+        <div class="body-list" id="body-list"><p class="empty-state">Preparando seu universo…</p></div>
+        <section id="body-details" class="body-details" hidden>
+          <div class="section-heading"><span class="eyebrow">CORPO SELECIONADO</span><button class="text-button" id="edit-body">Editar ↗</button></div>
+          <h3 id="detail-name"></h3><dl><div><dt>Massa</dt><dd id="detail-mass"></dd></div><div><dt>Densidade</dt><dd id="detail-density"></dd></div><div><dt>Raio físico</dt><dd id="detail-radius"></dd></div><div><dt>Velocidade</dt><dd id="detail-velocity"></dd></div><div><dt>Posição X</dt><dd id="detail-x"></dd></div><div><dt>Posição Y</dt><dd id="detail-y"></dd></div></dl>
+          <p class="field-note">Os tamanhos visuais são ampliados para facilitar a observação.</p>
+        </section>
+        <div class="files-section"><div class="section-heading"><h2>Seus arquivos</h2><span class="subtle-icon">▤</span></div><button class="button button-outline full-width" id="save-button">↓ Salvar universo</button><button class="button button-quiet full-width" id="library-button">Abrir universos salvos ↗</button><div class="file-actions"><button class="text-button" id="import-button">Importar .txt</button><span>·</span><button class="text-button" id="export-button">Exportar .txt</button></div><input type="file" id="import-file" accept=".txt,text/plain" hidden></div>
+      </aside>
+    </div>
+    <footer><span><span class="footer-orbit">◎</span> ÓRBITA <span class="footer-separator">/</span> Laboratório de simulação gravitacional</span><span>Construído com curiosidade. Regido pela física.</span></footer>
+  </main>
+
+  <dialog id="body-dialog"><form id="body-form"><div class="dialog-heading"><div><span class="eyebrow">CONSTRUA SEU UNIVERSO</span><h2 id="body-dialog-title">Adicionar corpo</h2></div><button type="button" class="icon-button close-dialog" aria-label="Fechar">×</button></div><p class="dialog-note">Use unidades do Sistema Internacional. Valores como 5.97e24 são aceitos.</p><label class="field-label" for="body-name">Nome</label><input id="body-name" maxlength="60" required value="Novo corpo"><div class="form-grid"><div><label class="field-label" for="body-mass">Massa (kg)</label><input id="body-mass" type="text" inputmode="decimal" value="5.97e24" required></div><div><label class="field-label" for="body-density">Densidade (kg/m³)</label><input id="body-density" type="text" inputmode="decimal" value="5514" required></div><div><label class="field-label" for="body-x">Posição X (m)</label><input id="body-x" type="text" inputmode="decimal" value="3e9" required></div><div><label class="field-label" for="body-y">Posição Y (m)</label><input id="body-y" type="text" inputmode="decimal" value="0" required></div><div><label class="field-label" for="body-vx">Velocidade X (m/s)</label><input id="body-vx" type="text" inputmode="decimal" value="0" required></div><div><label class="field-label" for="body-vy">Velocidade Y (m/s)</label><input id="body-vy" type="text" inputmode="decimal" value="100" required></div></div><p id="body-form-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button button-danger" id="remove-body" hidden>Remover corpo</button><button type="button" class="button button-outline close-dialog">Cancelar</button><button type="submit" class="button button-accent">Aplicar corpo</button></div></form></dialog>
+  <dialog id="library-dialog"><div class="dialog-heading"><div><span class="eyebrow">CONTINUE SUA EXPLORAÇÃO</span><h2>Universos salvos</h2></div><button class="icon-button close-dialog" aria-label="Fechar">×</button></div><p class="dialog-note">Arquivos compatíveis com o simulador de console. Ao abrir, o contador de iterações recomeça.</p><div id="saved-list"></div></dialog>
+  <dialog id="help-dialog"><div class="dialog-heading"><div><span class="eyebrow">UM GUIA PARA EXPLORAR</span><h2>Seu laboratório de gravidade</h2></div><button class="icon-button close-dialog" aria-label="Fechar">×</button></div><div class="help-content"><p><b>1. Escolha um universo.</b> Escolha a quantidade de corpos. “Gerar corpos aleatórios” usa as mesmas faixas de massa, densidade, posição e velocidade do programa original.</p><p><b>2. Dê movimento.</b> Inicie, pause ou avance uma iteração. O passo de tempo define quantos segundos físicos cada cálculo avança; a velocidade define quantos passos são feitos por atualização.</p><p><b>3. Explore os corpos.</b> Clique em um corpo ou na lista para ver suas propriedades. Você pode editar massa, densidade, posição e velocidade, ou adicionar novos corpos.</p><p><b>4. Guarde sua descoberta.</b> Salve no computador do servidor ou exporte um arquivo .txt. É possível importar arquivos criados pelo programa de console.</p><div class="help-physics"><b>A física por trás da tela</b><p>A simulação usa diretamente as classes C# do projeto: força gravitacional de Newton, atualização de posição por MRUV e colisões elásticas. É uma aproximação numérica: passos grandes, especialmente em encontros próximos, reduzem a precisão. Reduza o passo de tempo nesses casos.</p><p>Os rastros mostram o histórico real de posições. O zoom altera apenas a visualização. ↺ restaura o estado inicial mais recente, incluindo suas edições.</p></div><p class="field-note">Atalhos: espaço para iniciar ou pausar; + e − para zoom; F para enquadrar.</p></div></dialog>
+  <dialog id="confirm-dialog"><div class="dialog-heading"><h2 id="confirm-title">Confirmar ação</h2></div><p id="confirm-message" class="dialog-note"></p><div class="dialog-actions"><button class="button button-outline" id="confirm-cancel">Cancelar</button><button class="button button-accent" id="confirm-ok">Confirmar</button></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
