@@ -3,6 +3,8 @@ using System.Globalization;
 using System.IO;
 using TrabalhoN2;
 
+/*
+
 /* Programa principal que apresenta um menu para o usuário criar, carregar ou apagar universos gravacionais 2D. */
 bool continuar = true;
 
