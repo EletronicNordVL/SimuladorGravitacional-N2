@@ -256,7 +256,7 @@ public class Universo
         /* Iniciar o cronometro antes do laço de iterações */
         Stopwatch cronometro = Stopwatch.StartNew();
 
-        for (int i = 1; i >= iteracoes; i++)
+        for (int i = 1; i <= iteracoes; i++)
         {
             tempoDecorrido += tempoEntreIteracoes;
 
@@ -272,7 +272,8 @@ public class Universo
         cronometro.Stop();
 
         Console.WriteLine();
-        Console.WriteLine($"[DESEMPENHO N2] Tempo total: {cronometro.ElapsedMilliseconds} ms ({cronometro.Elapsed.TotalSeconds:F2} segundos)");
+        Console.WriteLine(
+            $"[DESEMPENHO N2] Tempo total: {cronometro.Elapsed.TotalMilliseconds:F2} ms ({cronometro.Elapsed.TotalSeconds:F2} segundos)");
         Console.WriteLine();
     }
 
