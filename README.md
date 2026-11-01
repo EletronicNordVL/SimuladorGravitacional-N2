@@ -1,59 +1,113 @@
-# Órbita — Simulador gravitacional 2D
+# Simulador Gravitacional 2D — N2
 
-Interface web para o projeto em C#/.NET 10. A física é executada pelas classes `Universo` e `Corpo` originais; o navegador desenha os estados retornados pelo servidor, sem duplicar o cálculo gravitacional.
+> Projeto prático desenvolvido para a disciplina de **Programação Avançada de Sistemas (PAS)** no curso de **Análise e Desenvolvimento de Sistemas (TADS)**.
 
-A [documentação completa](DOCUMENTACAO.md) descreve as classes, o encapsulamento, as equações físicas, a integração da interface e o roteiro de apresentação.
+## 📌 Sobre o Projeto
 
-## Executar a interface
+O **Simulador Gravitacional 2D (Versão N2)** é a evolução do sistema de simulação de mecânica celeste e gravitação universal em C#.
 
-Na pasta do projeto:
+Nesta segunda versão (N2), a aplicação substituiu o antigo salvamento em arquivos de texto por uma **arquitetura de banco de dados relacional MySQL (3FN)** com **transações ADO.NET**, e acelerou o motor físico integrando **Computação Paralela (`Parallel.For`)** para distribuir os cálculos de atração gravitacional N-corpos entre múltiplos núcleos de processador.
 
-Para a apresentação, dê dois cliques em **`Iniciar.cmd`**. Na primeira execução ele prepara uma versão compilada em `.local-runtime/app`, inicia o servidor em segundo plano e abre o navegador. Nas próximas execuções, reutiliza o servidor existente, evitando instâncias duplicadas. O servidor não depende do terminal, do Visual Studio ou desta conversa.
+## 🚀 Principais Novidades e Funcionalidades (N2)
 
-Um supervisor local reinicia o servidor se o processo encerrar inesperadamente. Para encerrar intencionalmente, use **`Parar.cmd`**. Para abrir sem iniciar o navegador, execute `powershell -NoProfile -ExecutionPolicy Bypass -File Iniciar.ps1 -NoBrowser`. A inicialização pelo Visual Studio usa a mesma porta **5080**. Os registros ficam em `.local-runtime/server.log`, `server-error.log` e `supervisor.log`.
+1. **Computação Paralela (`Parallel.For`)**:
+   - Paralelização dos cálculos das forças gravitacionais resultantes entre todos os pares de corpos.
+   - Atualização simultânea de posições, velocidades e acelerações (MRUV) usando a biblioteca `System.Threading.Tasks`.
+   - Execução *thread-safe* (sem condições de corrida) garantida pelo acúmulo local de forças por corpo.
 
-Ou execute pelo terminal:
+2. **Persistência Relacional em MySQL (3ª Forma Normal)**:
+   - Estrutura relacional normalizada: `Simulacao` (Metadata), `Corpo` (Propriedades físicas) e `EstadoCorpo` (Histórico temporal).
+   - Gerenciamento de alterações com **Transações (`MySqlTransaction`)** para garantir atomicidade nas inserções.
+   - Chaves estrangeiras com **`ON DELETE CASCADE`** para remoção automática e segura de simulações e seus históricos.
+   - **Índices de Performance**: Índice composto `idx_estado_corpo_passo (corpo_id, num_passo)` otimizando leituras na funcionalidade de Replay.
 
-```powershell
-dotnet run --project Web/TrabalhoN1.Web.csproj
+3. **Menu Interativo e Replay de Simulação**:
+   - **Criar Novo Universo**: Configuração personalizada de quantidade de corpos, iterações e intervalo de tempo.
+   - **Replay de Simulação (Leitura do MySQL)**: Consulta dos registros armazenados no MySQL e reprodução passo a passo do histórico de movimento.
+   - **Gerenciamento de Dados**: Listagem e remoção de simulações diretamente via banco de dados.
+
+## 🗄️ Modelo do Banco de Dados (MySQL)
+
+O esquema relacional é composto por três tabelas estruturadas em hierarquia de 3ª Forma Normal (3FN):
+
+* **`Simulacao`** (Tabela Pai): Armazena os parâmetros globais da execução (`id_simulacao`, `nome`, `data_criacao`, `qtd_corpos`, `qtd_iteracoes`, `tempo_entre_iteracoes`).
+* **`Corpo`** (Tabela Filho): Registra cada corpo celeste e suas propriedades físicas fixas (`id_corpo`, `id_simulacao`, `nome`, `massa`, `densidade`).
+* **`EstadoCorpo`** (Tabela Neto): Armazena todo o histórico da simulação (`id_registro`, `corpo_id`, `num_passo`, `tempo_decorrido`, posições, velocidades, forças e acelerações em X e Y).
+
+```
++------------------------------------+
+|             Simulacao              |
++------------------------------------+
+| PK  id_simulacao (INT, AUTO_INC)   |
+|     nome (VARCHAR)                 |
+|     data_criacao (DATETIME)        |
+|     qtd_corpos (INT)               |
+|     qtd_iteracoes (INT)            |
+|     tempo_entre_iteracoes (DOUBLE) |
++------------------------------------+
+                  | 1
+                  |
+                  | N
++------------------------------------+
+|               Corpo                |
++------------------------------------+
+| PK  id_corpo (INT, AUTO_INC)       |
+| FK  id_simulacao (INT)             |
+|     nome (VARCHAR)                 |
+|     massa (DOUBLE)                 |
+|     densidade (DOUBLE)             |
++------------------------------------+
+                  | 1
+                  |
+                  | N
++------------------------------------+
+|            EstadoCorpo             |
++------------------------------------+
+| PK  id_registro (BIGINT, AUTO_INC) |
+| FK  corpo_id (INT)                 |
+|     num_passo (INT)                |
+|     tempo_decorrido (DOUBLE)       |
+|     pos_x, pos_y (DOUBLE)          |
+|     vel_x, vel_y (DOUBLE)          |
+|     forca_x, forca_y (DOUBLE)      |
+|     aceleracao_x, aceleracao_y     |
++------------------------------------+
 ```
 
-Abra **http://localhost:5080** no navegador. É necessário o SDK .NET 10. Não há dependências npm, fontes externas ou serviços de terceiros. O servidor aceita conexões locais.
+---
 
-## Executar o programa de console
+## 🏗️ Estrutura e Arquitetura do Projeto
 
-```powershell
-dotnet run --project TrabalhoN1.csproj
-```
+* `ConexaoBD.cs`: Gerenciador da conexão ADO.NET com `MySql.Data`.
+* `GravadorUniversoBD.cs`: DAO com transações para operações de gravação, replay e deleção no MySQL.
+* `Universo.cs`: Motor físico de mecânica celeste paralelizado com `Parallel.For`.
+* `Corpo.cs`: Modelo de dados e estado físico das entidades celestes.
+* `Program.cs`: Menu interativo via console para controle de execução.
 
-## Recursos
+## ⚙️ Tecnologias Utilizadas
 
-- Universo de corpos aleatórios gerados diretamente pelo método original `Universo.GerarCorposAleatorios`: massas de 10²² a 10²⁵ kg, densidades de 3.000 a 6.000 kg/m³, posições até ±5 × 10⁹ m e velocidades até ±200 m/s em cada eixo.
-- Iniciar, pausar, avançar um passo, restaurar condições iniciais e definir limite de iterações.
-- Passo físico entre 0,001 e 86.400 segundos; reprodução de 1 a 10 passos por atualização.
-- Visualização com zoom, deslocamento, enquadramento, nomes, grade e histórico de trajetórias.
-- Consulta e edição de corpos; até 100 corpos por universo.
-- Salvamento, carregamento e exclusão de `universo_N.txt` na pasta raiz, compatíveis com o console.
-- Importação/exportação de arquivos `.txt`; importação aceita ponto ou vírgula decimal.
-- Interface responsiva, controles por teclado e confirmação antes de substituir um universo ou excluir um arquivo.
+* **Linguagem**: C# (.NET SDK)
+* **Computação Paralela**: Task Parallel Library (TPL) — `Parallel.For`
+* **Banco de Dados**: MySQL Server 8.0+
+* **Driver MySQL**: `MySql.Data` (ADO.NET)
 
-## Comportamento e precisão
+## 💻 Como Executar o Projeto
 
-O passo de tempo é o intervalo físico integrado, não um atraso em tempo real. O cálculo mantém o método original: gravitação de Newton, atualização por MRUV e colisões elásticas. Esse integrador é uma aproximação e pode acumular erro, especialmente com passos grandes ou encontros próximos. Reduza o passo nesses casos.
+### Pré-requisitos
+1. .NET SDK instalado na máquina.
+2. Servidor MySQL em execução e MySQL Workbench.
 
-Não há estrela central nem órbitas pré-definidas: todos os corpos interagem pela gravitação. Os raios visuais são ampliados: as colisões usam os raios físicos calculados por massa e densidade. Os rastros guardam as últimas 800 posições retornadas; na reprodução acelerada, mostram os estados ao final de cada grupo de passos.
+### Passo a Passo
 
-Editar ou adicionar/remover corpos redefine o estado inicial e os contadores. Restaurar volta a esse estado. Salvar/exportar guarda posições e velocidades atuais no formato original, que não contém tempo acumulado nem histórico de trajetórias. Ao carregar/importar, os contadores recomeçam.
+1. **Configurar o Banco de Dados**:
+   - No MySQL Workbench, execute o script DDL para criar o banco `simulador_gravitacional` e suas tabelas (`Simulacao`, `Corpo`, `EstadoCorpo`).
 
-## Verificação
+2. **Configurar Conexão**:
+   - No arquivo `ConexaoBD.cs`, ajuste os parâmetros da string de conexão para apontar para o seu servidor MySQL.
 
-```powershell
-dotnet build Web/TrabalhoN1.Web.csproj
-node --check Web/wwwroot/app.js
-```
+3. **Executar a Aplicação**:
+   - No terminal, navegue até a pasta do projeto e rode `dotnet run`.
 
-Com o servidor rodando, `node scripts/verify-api.mjs` verifica a integração HTTP, a evolução dos corpos, ação e reação, importação/exportação e rejeição de entradas inválidas, sem criar ou excluir universos salvos.
+## 👨‍💻 Autores
 
-`scripts/verify-browser.mjs` verifica a interface, os arquivos, o mouse, os atalhos e o layout em desktop e celular usando um Chrome de teste com a porta de depuração 9222. Ele cria e exclui somente o universo salvo pelo próprio teste.
-
-`powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-runtime.ps1` verifica os atalhos, a recuperação automática e a permanência do servidor. Esse teste interrompe brevemente o processo deste projeto para provar a recuperação e deixa o localhost em funcionamento ao terminar.
+Projeto desenvolvido para o trabalho acadêmico da **N2** da disciplina de **Programação Avançada de Sistemas (PAS)**.
