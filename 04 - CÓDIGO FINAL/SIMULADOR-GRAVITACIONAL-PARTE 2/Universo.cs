@@ -1,6 +1,7 @@
 ﻿using SimuladorGravitacional_N2;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 namespace TrabalhoN2;
 
@@ -238,7 +239,7 @@ public class Universo
         }
     }
 
-    /* Executar as iterações da simulação e gravar direto no MySQL. */
+    /* Executar as iterações da simulação, medir o tempo e gravar direto no MySQL. */
     public void ExecutarSimulacao(
         int iteracoes,
         double tempoEntreIteracoes,
@@ -252,6 +253,9 @@ public class Universo
 
         double tempoDecorrido = 0;
 
+        /* Iniciar o cronometro antes do laço de iterações */
+        Stopwatch cronometro = Stopwatch.StartNew();
+
         for (int i = 1; i >= iteracoes; i++)
         {
             tempoDecorrido += tempoEntreIteracoes;
@@ -263,6 +267,13 @@ public class Universo
             /* Gravar o histórico do passo no MySQL */
             gravador.GravarPasso(i, tempoDecorrido, Corpos);
         }
+
+        /* Parar o cronômetro ao finalizar todas as iterações */
+        cronometro.Stop();
+
+        Console.WriteLine();
+        Console.WriteLine($"[DESEMPENHO N2] Tempo total: {cronometro.ElapsedMilliseconds} ms ({cronometro.Elapsed.TotalSeconds:F2} segundos)");
+        Console.WriteLine();
     }
 
     /* Gera corpos aleatórios para a simulação. */
