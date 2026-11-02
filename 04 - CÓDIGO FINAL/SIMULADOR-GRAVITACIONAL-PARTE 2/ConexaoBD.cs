@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using MySql.Data.MySqlClient;
 
 namespace SimuladorGravitacional_N2;
