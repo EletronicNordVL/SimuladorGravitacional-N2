@@ -68,12 +68,34 @@ SELECT * FROM EstadoCorpo;
 /* C) Ver os primeiros passos do histórico gravados */
 SELECT * FROM EstadoCorpo LIMIT 15;
 
+/* C.1) Uma consulta da contagem do total de estados dos corpos */
+SELECT COUNT(*) AS TotalEstados FROM EstadoCorpo;
+
+/* C.2) Ver o total de corpos e o total de seus estados */
+SELECT ec.corpo_id, c.nome, COUNT(*) AS total_estados FROM EstadoCorpo ec INNER JOIN Corpo c ON c.id_corpo = ec.corpo_id
+GROUP BY ec.corpo_id, c.nome ORDER BY ec.corpo_id;
+
 /* D) Comando para apagar as simulações por meio do ID */
 DELETE FROM Simulacao WHERE id_simulacao = 1;
+DELETE FROM Simulacao WHERE id_simulacao = 5;
 
 /* E) Comando para apagar todas as simulações */
 DELETE FROM Simulacao;
 
 /* F) Comando para uma consulta de um EstadoCorpo utilizando o Explain Select */
 EXPLAIN SELECT * FROM EstadoCorpo WHERE corpo_id = 1 AND num_passo = 50;
- 
+
+DESCRIBE EstadoCorpo;
+DESCRIBE Corpo;
+
+/* G) Adicionar o 'Stored Procedure' para remover registros com mais de 1 mês de antiguidade */
+DELIMITER $$
+CREATE PROCEDURE sp_limpar_simulacoes_antigas() 
+BEGIN
+    DELETE FROM Simulacao
+    WHERE data_criacao < DATE_SUB(NOW(), INTERVAL 1 MONTH); 
+    END $$ 
+DELIMITER ;
+
+/* G.1) Testar ou executar manualmente a limpeza */
+CALL sp_limpar_simulacoes_antigas();
