@@ -89,10 +89,21 @@ app.MapPost("/api/simulation/step", (StepRequest request) =>
         request.State.Elapsed + steps * universe.TempoEntreIteracoes);
 });
 
-/*  Rota para listar os universos salvos no diretório de armazenamento. */
-app.MapGet("/api/universes", () => Directory.GetFiles(storage, "universo_*.txt")
-    .Select(path => new { name = Path.GetFileName(path), modified = File.GetLastWriteTimeUtc(path), size = new FileInfo(path).Length })
-    .OrderByDescending(file => file.modified));
+app.MapGet("/api/universes", () =>
+{
+    GravadorUniversoBD gravadorBD =
+        new GravadorUniversoBD();
+
+    return gravadorBD.ListarSimulacoes()
+        .Select(simulacao => new
+        {
+            id = simulacao.Id,
+            name = simulacao.Nome,
+            modified = simulacao.DataCriacao
+        })
+        .OrderByDescending(simulacao => simulacao.modified)
+        .ToList();
+});
 
 /*  Rota para salvar o estado atual do universo em um arquivo. */
 app.MapPost("/api/universes/save", (Snapshot state) =>
