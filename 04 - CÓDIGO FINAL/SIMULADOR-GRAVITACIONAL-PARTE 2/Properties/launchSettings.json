@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "SimuladorGravitacional_N2": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "SIMULADOR_DB_CONNECTION": "Server=localhost;Port=3306;Database=simulador_gravitacional;User ID=root;Password=Kd15ssr3ZDif;"
+      },
+      "hotReloadEnabled": false
+    }
+  }
+}
