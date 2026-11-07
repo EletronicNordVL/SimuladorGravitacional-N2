@@ -13,7 +13,7 @@ public class GravadorUniversoBD
     private Dictionary<Corpo, int> mapaIdCorpos =
         new Dictionary<Corpo, int>();
 
-    public void IniciarSimulacao(
+    public int IniciarSimulacao(
         string nomeSimulacao,
         List<Corpo> corpos,
         int qtdIteracoes,
@@ -60,7 +60,11 @@ public class GravadorUniversoBD
                     }
 
                     transacao.Commit();
-                    Console.WriteLine($"[BD] Simulação '{nomeSimulacao}' criada com Sucesso! (ID: {idSimulacaoAtual})");
+                    Console.WriteLine(
+                        $"[BD] Simulação '{nomeSimulacao}' criada com Sucesso! " +
+                        $"(ID: {idSimulacaoAtual})");
+
+                    return idSimulacaoAtual;
                 }
                 catch (Exception ex)
                 {
