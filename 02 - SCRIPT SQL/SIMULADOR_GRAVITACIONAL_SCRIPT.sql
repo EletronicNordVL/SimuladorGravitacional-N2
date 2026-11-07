@@ -104,9 +104,6 @@ STARTS CURRENT_TIMESTAMP + INTERVAL 1 DAY
 DO
     CALL sp_limpar_simulacoes_antigas();
 
-/* G.2) Para testar a limpeza manualmente, remova o comentário */
-CALL sp_limpar_simulacoes_antigas();
-
-/* 6.3) Verificar se o Agendador está ligado */
+/* 6.2) Verificar se o Agendador está ligado */
 SHOW VARIABLES LIKE 'event_scheduler';
 SHOW EVENTS FROM simulador_gravitacional;
