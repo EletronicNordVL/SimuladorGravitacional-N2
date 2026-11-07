@@ -83,6 +83,7 @@ public class GravadorUniversoBD
         {
             Nome = string.Empty;
         }
+    }
 
     public List<Corpo> CarregarPasso(
     int idSimulacao,
@@ -174,7 +175,6 @@ public class GravadorUniversoBD
 
             return simulacoes;
         }
-    }
 
     public void GravarPasso(int numPasso, double tempoDecorrido, List<Corpo> corpos)
     {
