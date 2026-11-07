@@ -1,7 +1,5 @@
-﻿using Google.Protobuf.Collections;
-using MySql.Data.MySqlClient;
+﻿using MySql.Data.MySqlClient;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using TrabalhoN2;
 
@@ -10,10 +8,17 @@ namespace SimuladorGravitacional_N2;
 public class GravadorUniversoBD
 {
     private int idSimulacaoAtual;
-    private Dictionary<Corpo, int> mapaIdCorpos = new Dictionary<Corpo, int>();
+    private Dictionary<Corpo, int> mapaIdCorpos =
+        new Dictionary<Corpo, int>();
 
-    public void IniciarSimulacao(string nomeSimulacao, List<Corpo> corpos, int qtdIteracoes, double tempoEntreIteracoes)
+    public void IniciarSimulacao(
+        string nomeSimulacao,
+        List<Corpo> corpos,
+        int qtdIteracoes,
+        double tempoEntreIteracoes)
     {
+        mapaIdCorpos.Clear();
+
         using (MySqlConnection conexao = ConexaoBD.ObterConexao())
         {
             using (MySqlTransaction transacao = conexao.BeginTransaction())
@@ -65,8 +70,80 @@ public class GravadorUniversoBD
         }
     }
 
+    public class ResumoSimulacao
+    {
+        public int Id { get; set; }
+        public string Nome { get; set; }
+        public DateTime DataCriacao { get; set; }
+        public int QuantidadeCorpos { get; set; }
+        public int QuantidadeIteracoes { get; set; }
+        public double TempoEntreIteracoes { get; set; }
+
+        public ResumoSimulacao()
+        {
+            Nome = string.Empty;
+        }
+    }
+
+    public List<Corpo> CarregarPasso(
+    int idSimulacao,
+    int numPasso)
+    {
+        List<Corpo> corpos = new List<Corpo>();
+
+        string sql = @"
+        SELECT c.nome, c.massa, c.densidade,
+               ec.pos_x, ec.pos_y, ec.vel_x, ec.vel_y,
+               ec.forca_x, ec.forca_y,
+               ec.aceleracao_x, ec.aceleracao_y
+        FROM EstadoCorpo ec
+        INNER JOIN Corpo c ON c.id_corpo = ec.corpo_id
+        WHERE c.id_simulacao = @idSimulacao
+          AND ec.num_passo = @numPasso
+        ORDER BY c.id_corpo;";
+
+        using (MySqlConnection conexao = ConexaoBD.ObterConexao())
+        using (MySqlCommand cmd = new MySqlCommand(sql, conexao))
+        {
+            cmd.Parameters.AddWithValue("@idSimulacao", idSimulacao);
+            cmd.Parameters.AddWithValue("@numPasso", numPasso);
+
+            using (MySqlDataReader reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    Corpo corpo = new Corpo(
+                        reader.GetString("nome"),
+                        reader.GetDouble("massa"),
+                        reader.GetDouble("densidade"),
+                        reader.GetDouble("pos_x"),
+                        reader.GetDouble("pos_y"),
+                        reader.GetDouble("vel_x"),
+                        reader.GetDouble("vel_y"));
+
+                    corpo.ForcaX = reader.GetDouble("forca_x");
+                    corpo.ForcaY = reader.GetDouble("forca_y");
+                    corpo.AceleracaoX =
+                        reader.GetDouble("aceleracao_x");
+                    corpo.AceleracaoY =
+                        reader.GetDouble("aceleracao_y");
+
+                    corpos.Add(corpo);
+                }
+            }
+        }
+
+        return corpos;
+    }
+
     public void GravarPasso(int numPasso, double tempoDecorrido, List<Corpo> corpos)
     {
+        if (idSimulacaoAtual == 0)
+        {
+            throw new InvalidOperationException(
+                "Inicie uma simulação antes de gravar os passos.");
+        }
+
         using (MySqlConnection conexao = ConexaoBD.ObterConexao())
         {
             using (MySqlTransaction transacao = conexao.BeginTransaction())
@@ -82,7 +159,15 @@ public class GravadorUniversoBD
                     {
                         using (MySqlCommand cmd = new MySqlCommand(sqlEstado, conexao, transacao))
                         {
-                            cmd.Parameters.AddWithValue("@corpoId", mapaIdCorpos[corpo]);
+                            int idCorpo;
+
+                            if (!mapaIdCorpos.TryGetValue(corpo, out idCorpo))
+                            {
+                                throw new InvalidOperationException(
+                                    "Um dos corpos não pertence à simulação iniciada.");
+                            }
+
+                            cmd.Parameters.AddWithValue("@corpoId", idCorpo);
                             cmd.Parameters.AddWithValue("@numPasso", numPasso);
                             cmd.Parameters.AddWithValue("@tempoDecorrido", tempoDecorrido);
                             cmd.Parameters.AddWithValue("@posX", corpo.PosX);
@@ -108,4 +193,3 @@ public class GravadorUniversoBD
         }
     }
 }
-
