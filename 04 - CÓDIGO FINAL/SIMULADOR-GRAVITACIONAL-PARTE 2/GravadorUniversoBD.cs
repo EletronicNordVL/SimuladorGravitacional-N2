@@ -84,47 +84,6 @@ public class GravadorUniversoBD
             Nome = string.Empty;
         }
 
-        public List<ResumoSimulacao> ListarSimulacoes()
-        {
-            List<ResumoSimulacao> simulacoes =
-                new List<ResumoSimulacao>();
-
-            string sql = @"
-        SELECT id_simulacao, nome, data_criacao,
-               qtd_corpos, qtd_iteracoes, tempo_entre_iteracoes
-        FROM Simulacao
-        ORDER BY data_criacao DESC, id_simulacao DESC;";
-
-            using (MySqlConnection conexao = ConexaoBD.ObterConexao())
-            using (MySqlCommand cmd = new MySqlCommand(sql, conexao))
-            using (MySqlDataReader reader = cmd.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    ResumoSimulacao simulacao =
-                        new ResumoSimulacao();
-
-                    simulacao.Id =
-                        reader.GetInt32("id_simulacao");
-                    simulacao.Nome =
-                        reader.GetString("nome");
-                    simulacao.DataCriacao =
-                        reader.GetDateTime("data_criacao");
-                    simulacao.QuantidadeCorpos =
-                        reader.GetInt32("qtd_corpos");
-                    simulacao.QuantidadeIteracoes =
-                        reader.GetInt32("qtd_iteracoes");
-                    simulacao.TempoEntreIteracoes =
-                        reader.GetDouble("tempo_entre_iteracoes");
-
-                    simulacoes.Add(simulacao);
-                }
-            }
-
-            return simulacoes;
-        }
-    }
-
     public List<Corpo> CarregarPasso(
     int idSimulacao,
     int numPasso)
@@ -174,6 +133,47 @@ public class GravadorUniversoBD
         }
 
         return corpos;
+    }
+
+      public List<ResumoSimulacao> ListarSimulacoes()
+        {
+            List<ResumoSimulacao> simulacoes =
+                new List<ResumoSimulacao>();
+
+            string sql = @"
+        SELECT id_simulacao, nome, data_criacao,
+               qtd_corpos, qtd_iteracoes, tempo_entre_iteracoes
+        FROM Simulacao
+        ORDER BY data_criacao DESC, id_simulacao DESC;";
+
+            using (MySqlConnection conexao = ConexaoBD.ObterConexao())
+            using (MySqlCommand cmd = new MySqlCommand(sql, conexao))
+            using (MySqlDataReader reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    ResumoSimulacao simulacao =
+                        new ResumoSimulacao();
+
+                    simulacao.Id =
+                        reader.GetInt32("id_simulacao");
+                    simulacao.Nome =
+                        reader.GetString("nome");
+                    simulacao.DataCriacao =
+                        reader.GetDateTime("data_criacao");
+                    simulacao.QuantidadeCorpos =
+                        reader.GetInt32("qtd_corpos");
+                    simulacao.QuantidadeIteracoes =
+                        reader.GetInt32("qtd_iteracoes");
+                    simulacao.TempoEntreIteracoes =
+                        reader.GetDouble("tempo_entre_iteracoes");
+
+                    simulacoes.Add(simulacao);
+                }
+            }
+
+            return simulacoes;
+        }
     }
 
     public void GravarPasso(int numPasso, double tempoDecorrido, List<Corpo> corpos)
