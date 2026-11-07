@@ -5,6 +5,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../TrabalhoN1.csproj" />
+    <ProjectReference Include="../SimuladorGravitacional_N2.csproj" />
   </ItemGroup>
 </Project>

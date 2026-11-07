@@ -1,5 +1,6 @@
 using System.Globalization;
-using TrabalhoN1;
+using SimuladorGravitacional_N2;
+using TrabalhoN2;
 
 /* Este projeto implementa uma simulação de um universo com corpos celestes, permitindo a criação, manipulação e exportação de estados do universo. 
  * A aplicação é construída utilizando ASP.NET Core e fornece uma API RESTful para interação com o universo simulado. */
