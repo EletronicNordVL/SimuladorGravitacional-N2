@@ -1,4 +1,3 @@
 <Solution>
-  <Project Path="SimuladorGravitacional_N2.csproj" />
-  <Project Path="Web/SimuladorGravitacionalN2.csproj" />
+  <Project Path="SimuladorGravitacionalN2.csproj" />
 </Solution>

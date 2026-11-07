@@ -7,11 +7,50 @@ using TrabalhoN2;
 
 namespace SimuladorGravitacional_N2;
 
-public class GravadorUniversoBD
+public class GravadorUniversoBD : IDisposable
 {
     private int idSimulacaoAtual;
     private Dictionary<Corpo, int> mapaIdCorpos =
         new Dictionary<Corpo, int>();
+
+    // Linhas de EstadoCorpo enviadas ao banco em cada INSERT.
+    // De 500 a 1000 equilibra poucas idas ao banco e pacotes pequenos.
+    private const int LinhasPorBloco = 500;
+
+    // Conexão mantida aberta durante a simulação (evita abrir uma por passo).
+    private MySqlConnection? conexaoGravacao;
+
+    // Linhas (cópias dos valores dos corpos) esperando para serem gravadas.
+    private readonly List<LinhaEstado> bufferLinhas = new List<LinhaEstado>();
+
+    // Marca que um bloco falhou: o FinalizarSimulacao não tenta gravar de novo.
+    private bool erroNaGravacao;
+
+    // Mede SOMENTE o tempo escrevendo no banco, para o relatório separar
+    // tempo de cálculo e tempo de gravação.
+    private readonly Stopwatch cronometroGravacao = new Stopwatch();
+    public TimeSpan TempoTotalGravacao => cronometroGravacao.Elapsed;
+
+    // "Foto" do corpo em um passo. É uma cópia dos valores porque o objeto
+    // Corpo muda na iteração seguinte, antes de a linha ser gravada.
+    private readonly struct LinhaEstado
+    {
+        public readonly int CorpoId;
+        public readonly int NumPasso;
+        public readonly double TempoDecorrido, PosX, PosY, VelX, VelY;
+        public readonly double ForcaX, ForcaY, AceleracaoX, AceleracaoY;
+
+        public LinhaEstado(int corpoId, int numPasso, double tempoDecorrido, Corpo c)
+        {
+            CorpoId = corpoId;
+            NumPasso = numPasso;
+            TempoDecorrido = tempoDecorrido;
+            PosX = c.PosX; PosY = c.PosY;
+            VelX = c.VelX; VelY = c.VelY;
+            ForcaX = c.ForcaX; ForcaY = c.ForcaY;
+            AceleracaoX = c.AceleracaoX; AceleracaoY = c.AceleracaoY;
+        }
+    }
 
     public int IniciarSimulacao(
         string nomeSimulacao,
@@ -20,6 +59,9 @@ public class GravadorUniversoBD
         double tempoEntreIteracoes)
     {
         mapaIdCorpos.Clear();
+        bufferLinhas.Clear();
+        erroNaGravacao = false;
+        cronometroGravacao.Reset();
 
         using (MySqlConnection conexao = ConexaoBD.ObterConexao())
         {
@@ -60,6 +102,7 @@ public class GravadorUniversoBD
                     }
 
                     transacao.Commit();
+                    cronometroGravacao.Stop();
                     Console.WriteLine(
                         $"[BD] Simulação '{nomeSimulacao}' criada com Sucesso! " +
                         $"(ID: {idSimulacaoAtual})");
@@ -68,6 +111,7 @@ public class GravadorUniversoBD
                 }
                 catch (Exception ex)
                 {
+                    cronometroGravacao.Stop();
                     transacao.Rollback();
                     mapaIdCorpos.Clear();
                     idSimulacaoAtual = 0;
@@ -221,52 +265,127 @@ public class GravadorUniversoBD
                 "Inicie uma simulação antes de gravar os passos.");
         }
 
-        using (MySqlConnection conexao = ConexaoBD.ObterConexao())
+        foreach (var corpo in corpos)
         {
-            using (MySqlTransaction transacao = conexao.BeginTransaction())
+            if (!mapaIdCorpos.TryGetValue(corpo, out int idCorpo))
+            {
+                throw new InvalidOperationException(
+                    "Um dos corpos não pertence à simulação iniciada.");
+            }
+
+            bufferLinhas.Add(new LinhaEstado(idCorpo, numPasso, tempoDecorrido, corpo));
+        }
+
+        if (bufferLinhas.Count >= LinhasPorBloco)
+        {
+            DescarregarBuffer();
+        }
+    }
+
+    /* Grava no banco todas as linhas acumuladas, com UM INSERT de várias linhas
+     * dentro de uma transação (ou grava o bloco inteiro, ou nada dele). */
+    private void DescarregarBuffer()
+    {
+        if (bufferLinhas.Count == 0)
+        {
+            return;
+        }
+
+        cronometroGravacao.Start();
+        try
+        {
+            /* Abre a conexão só na primeira vez; depois ela é reaproveitada. */
+            conexaoGravacao ??= ConexaoBD.ObterConexao();
+
+            using (MySqlTransaction transacao = conexaoGravacao.BeginTransaction())
             {
                 try
                 {
-                    string sqlEstado = @"INSERT INTO EstadoCorpo
-         (corpo_id, num_passo, tempo_decorrido, pos_x, pos_y, vel_x, vel_y, forca_x, forca_y, aceleracao_x, aceleracao_y)
-         VALUES
-         (@corpoId, @numPasso, @tempoDecorrido, @posX, @posY, @velX, @velY, @forcaX, @forcaY, @aceleracaoX, @aceleracaoY);";
+                    StringBuilder sql = new StringBuilder(
+                        "INSERT INTO EstadoCorpo (corpo_id, num_passo, tempo_decorrido, " +
+                        "pos_x, pos_y, vel_x, vel_y, forca_x, forca_y, aceleracao_x, aceleracao_y) VALUES ");
 
-                    foreach (var corpo in corpos)
+                    using (MySqlCommand cmd = new MySqlCommand())
                     {
-                        using (MySqlCommand cmd = new MySqlCommand(sqlEstado, conexao, transacao))
+                        cmd.Connection = conexaoGravacao;
+                        cmd.Transaction = transacao;
+
+                        /* Cada linha ganha parâmetros com sufixo próprio (@c0, @n0, @c1, ...) */
+                        for (int i = 0; i < bufferLinhas.Count; i++)
                         {
-                            int idCorpo;
+                            LinhaEstado l = bufferLinhas[i];
 
-                            if (!mapaIdCorpos.TryGetValue(corpo, out idCorpo))
-                            {
-                                throw new InvalidOperationException(
-                                    "Um dos corpos não pertence à simulação iniciada.");
-                            }
+                            if (i > 0) sql.Append(',');
+                            sql.Append($"(@c{i},@n{i},@t{i},@px{i},@py{i},@vx{i},@vy{i},@fx{i},@fy{i},@ax{i},@ay{i})");
 
-                            cmd.Parameters.AddWithValue("@corpoId", idCorpo);
-                            cmd.Parameters.AddWithValue("@numPasso", numPasso);
-                            cmd.Parameters.AddWithValue("@tempoDecorrido", tempoDecorrido);
-                            cmd.Parameters.AddWithValue("@posX", corpo.PosX);
-                            cmd.Parameters.AddWithValue("@posY", corpo.PosY);
-                            cmd.Parameters.AddWithValue("@velX", corpo.VelX);
-                            cmd.Parameters.AddWithValue("@velY", corpo.VelY);
-                            cmd.Parameters.AddWithValue("@forcaX", corpo.ForcaX);
-                            cmd.Parameters.AddWithValue("@forcaY", corpo.ForcaY);
-                            cmd.Parameters.AddWithValue("@aceleracaoX", corpo.AceleracaoX);
-                            cmd.Parameters.AddWithValue("@aceleracaoY", corpo.AceleracaoY);
-                            cmd.ExecuteNonQuery();
+                            cmd.Parameters.AddWithValue($"@c{i}", l.CorpoId);
+                            cmd.Parameters.AddWithValue($"@n{i}", l.NumPasso);
+                            cmd.Parameters.AddWithValue($"@t{i}", l.TempoDecorrido);
+                            cmd.Parameters.AddWithValue($"@px{i}", l.PosX);
+                            cmd.Parameters.AddWithValue($"@py{i}", l.PosY);
+                            cmd.Parameters.AddWithValue($"@vx{i}", l.VelX);
+                            cmd.Parameters.AddWithValue($"@vy{i}", l.VelY);
+                            cmd.Parameters.AddWithValue($"@fx{i}", l.ForcaX);
+                            cmd.Parameters.AddWithValue($"@fy{i}", l.ForcaY);
+                            cmd.Parameters.AddWithValue($"@ax{i}", l.AceleracaoX);
+                            cmd.Parameters.AddWithValue($"@ay{i}", l.AceleracaoY);
                         }
+
+                        cmd.CommandText = sql.ToString();
+                        cmd.ExecuteNonQuery();
                     }
+
                     transacao.Commit();
+                    bufferLinhas.Clear();
                 }
                 catch (Exception ex)
                 {
                     transacao.Rollback();
-                    Console.WriteLine($"[ERRO BD] Falha ao gravar o passo {numPasso}: {ex.Message}");
+                    Console.WriteLine($"[ERRO BD] Falha ao gravar um bloco de passos: {ex.Message}");
                     throw;
                 }
             }
         }
+        catch (Exception)
+        {
+            erroNaGravacao = true;
+            throw;
+        }
+        finally
+        {
+            cronometroGravacao.Stop();
+        }
+    }
+
+    /* Deve ser chamado ao fim da simulação: grava o último bloco (quase sempre menor
+     * que LinhasPorBloco) e fecha a conexão. Sem isso, as últimas linhas ficariam só
+     * na memória e o replay as perderia. */
+    public void FinalizarSimulacao()
+    {
+        try
+        {
+            if (!erroNaGravacao)
+            {
+                DescarregarBuffer();
+            }
+        }
+        finally
+        {
+            FecharConexao();
+            bufferLinhas.Clear();
+        }
+    }
+
+    private void FecharConexao()
+    {
+        conexaoGravacao?.Dispose();
+        conexaoGravacao = null;
+    }
+
+    /* Rede de segurança caso o FinalizarSimulacao não seja chamado. */
+    public void Dispose()
+    {
+        FecharConexao();
+        bufferLinhas.Clear();
     }
 }
