@@ -63,6 +63,8 @@ public class GravadorUniversoBD
                 catch (Exception ex)
                 {
                     transacao.Rollback();
+                    mapaIdCorpos.Clear();
+                    idSimulacaoAtual = 0;
                     Console.WriteLine($"[ERRO BD] Falha ao iniciar simulação: {ex.Message}");
                     throw;
                 }
