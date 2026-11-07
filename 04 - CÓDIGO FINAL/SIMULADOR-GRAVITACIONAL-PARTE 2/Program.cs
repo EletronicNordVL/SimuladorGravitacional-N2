@@ -340,58 +340,48 @@ while (continuar)
 
             break;
 
-        /* Apagar um universo salvo de um arquivo txt. */
         case "3":
 
-            Console.WriteLine("Apagar universo salvo");
+            Console.WriteLine("Selecionar e apagar simulação");
             Console.WriteLine();
 
-            /* Aqui serve para buscar todos os arquivos de universos salvos. */
-            string[] universosParaDeletar =
-                Directory.GetFiles(
-                    ".",
-                    "universo_*.txt"
-                );
+            GravadorUniversoBD gravadorExcluirBD =
+                new GravadorUniversoBD();
 
-            /* Verificar se existem universos salvos. */
-            if (universosParaDeletar.Length == 0)
+            List<GravadorUniversoBD.ResumoSimulacao> simulacoesParaExcluir =
+                gravadorExcluirBD.ListarSimulacoes();
+
+            if (simulacoesParaExcluir.Count == 0)
             {
                 Console.WriteLine(
-                    "Nenhum universo salvo foi encontrado no sistema."
-                );
-
+                    "Nenhuma simulação foi encontrada no banco de dados.");
                 break;
             }
 
-            /* Exibir os universos salvos para o usuário escolher qual apagar. */
-            for (int i = 0; i < universosParaDeletar.Length; i++)
+            for (int i = 0; i < simulacoesParaExcluir.Count; i++)
             {
+                GravadorUniversoBD.ResumoSimulacao simulacao =
+                    simulacoesParaExcluir[i];
+
                 Console.WriteLine(
-                    $"{i + 1} - {Path.GetFileName(universosParaDeletar[i])}"
-                );
+                    $"{i + 1} - {simulacao.Nome} " +
+                    $"(ID: {simulacao.Id}, criada em: " +
+                    $"{simulacao.DataCriacao:dd/MM/yyyy HH:mm})");
             }
 
-            /* Exibir a opção de voltar ao menu principal. */
             Console.WriteLine("0 - Voltar");
-
-            /* Solicitar ao usuário que escolha um universo para apagar. */
             Console.WriteLine();
-            Console.Write("Escolha um universo para apagar: ");
+            Console.Write("Escolha uma simulação para apagar: ");
 
-            /* Inicializar a variável que armazenará a escolha do usuário. */
             int escolhaApagar;
 
-            /* Verificar se a entrada do usuário é um número válido, caso contrário, solicitar novamente. */
             while (!int.TryParse(
-                       Console.ReadLine(),
-                       out escolhaApagar))
+                Console.ReadLine(),
+                out escolhaApagar))
             {
-                Console.Write(
-                    "Valor inválido. Escolha um universo para apagar ou 0 para voltar: "
-                );
+                Console.Write("Digite um número válido: ");
             }
 
-            /* Voltar ao menu principal caso o usuário escolha a opção 0. */
             if (escolhaApagar == 0)
             {
                 aguardarEnter = false;
@@ -399,26 +389,42 @@ while (continuar)
                 break;
             }
 
-            /* Verificar se a opção escolhida existe na lista. */
             if (escolhaApagar < 1 ||
-                escolhaApagar > universosParaDeletar.Length)
+                escolhaApagar > simulacoesParaExcluir.Count)
             {
-                Console.WriteLine();
                 Console.WriteLine("Opção inválida.");
                 break;
             }
 
-            /* Obter o caminho do arquivo selecionado para deletar. */
-            string arquivoDeletar =
-                universosParaDeletar[escolhaApagar - 1];
+            GravadorUniversoBD.ResumoSimulacao simulacaoParaExcluir =
+                simulacoesParaExcluir[escolhaApagar - 1];
 
-            /* Excluir o arquivo selecionado no disco. */
-            File.Delete(arquivoDeletar);
+            Console.Write(
+                $"Confirma a exclusão de '{simulacaoParaExcluir.Nome}'? (S/N): ");
 
-            Console.WriteLine();
-            Console.WriteLine(
-                $"Arquivo {Path.GetFileName(arquivoDeletar)} apagado com sucesso."
-            );
+            string? confirmacaoExclusao = Console.ReadLine();
+
+            if (confirmacaoExclusao == null ||
+                confirmacaoExclusao.Trim().ToUpper() != "S")
+            {
+                Console.WriteLine("Exclusão cancelada.");
+                break;
+            }
+
+            bool simulacaoExcluida =
+                gravadorExcluirBD.ExcluirSimulacao(
+                    simulacaoParaExcluir.Id);
+
+            if (simulacaoExcluida)
+            {
+                Console.WriteLine(
+                    "Simulação e dados associados apagados com sucesso.");
+            }
+            else
+            {
+                Console.WriteLine(
+                    "A simulação não foi encontrada no banco.");
+            }
 
             break;
 

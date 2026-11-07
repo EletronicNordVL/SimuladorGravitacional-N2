@@ -70,6 +70,23 @@ public class GravadorUniversoBD
         }
     }
 
+    public bool ExcluirSimulacao(int idSimulacao)
+    {
+        string sql = @"
+        DELETE FROM Simulacao
+        WHERE id_simulacao = @idSimulacao;";
+
+        using (MySqlConnection conexao = ConexaoBD.ObterConexao())
+        using (MySqlCommand cmd = new MySqlCommand(sql, conexao))
+        {
+            cmd.Parameters.AddWithValue("@idSimulacao", idSimulacao);
+
+            int linhasAfetadas = cmd.ExecuteNonQuery();
+
+            return linhasAfetadas > 0;
+        }
+    }
+
     public class ResumoSimulacao
     {
         public int Id { get; set; }
