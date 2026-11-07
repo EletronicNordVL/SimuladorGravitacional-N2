@@ -468,4 +468,15 @@ while (continuar)
 
             break;
     }
+
+    if (continuar && aguardarEnter)
+    {
+        Console.WriteLine();
+        Console.WriteLine(
+            "Pressione ENTER para voltar ao menu."
+        );
+
+        Console.ReadLine();
+        Console.Clear();
+    }
 }
