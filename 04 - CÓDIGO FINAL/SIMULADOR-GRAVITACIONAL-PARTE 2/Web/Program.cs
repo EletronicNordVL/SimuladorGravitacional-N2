@@ -226,18 +226,33 @@ record CreateRequest(int Count);
 /* Classe de requisição para avançar a simulação em um número de passos. */
 record StepRequest(Snapshot State, int Steps);
 
-/* Classe que representa o estado de um universo em um determinado ponto da simulação. */
-record Snapshot(List<Corpo> Corpos, int QuantidadeIteracoes, double TempoEntreIteracoes, int Iteration, double Elapsed)
+record Snapshot(
+    List<Corpo> Corpos,
+    int QuantidadeIteracoes,
+    double TempoEntreIteracoes,
+    int Iteration,
+    double Elapsed,
+    int IdSimulacao = 0)
 {
-    public static Snapshot From(Universo u, int iteration, double elapsed)
+    public static Snapshot From(
+        Universo u,
+        int iteration,
+        double elapsed,
+        int idSimulacao = 0)
     {
         ValidateBodies(u.Corpos);
         if (u.Corpos.Any(c => new[] { c.ForcaX, c.ForcaY, c.AceleracaoX, c.AceleracaoY }.Any(v => !double.IsFinite(v))))
             throw new ArgumentException("O cálculo excedeu a precisão numérica. Reduza o passo de tempo ou aumente a distância entre os corpos.");
-        return new(u.Corpos, u.QuantidadeIteracoes, u.TempoEntreIteracoes, iteration, elapsed);
+        return new(
+            u.Corpos,
+            u.QuantidadeIteracoes,
+            u.TempoEntreIteracoes,
+            iteration,
+            elapsed,
+            idSimulacao);
     }
-    /* Converte o Snapshot de volta para um Universo, validando os dados. */
-    public Universo ToUniverse()
+/* Converte o Snapshot de volta para um Universo, validando os dados. */
+public Universo ToUniverse()
     {
         /* Valida os parâmetros do Snapshot antes de criar o Universo. */
         if (QuantidadeIteracoes < 1 || QuantidadeIteracoes > 1000000) throw new ArgumentException("Use de 1 a 1.000.000 iterações.");
