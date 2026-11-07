@@ -332,10 +332,14 @@ while (continuar)
                         $"Velocidade: ({corpo.VelX:F4}, {corpo.VelY:F4})");
                 }
 
-                Console.WriteLine();
-                Console.WriteLine(
-                    "Pressione ENTER para mostrar o próximo passo.");
-                Console.ReadLine();
+                if (passo < simulacaoSelecionada.QuantidadeIteracoes)
+                {
+
+                    Console.WriteLine();
+                    Console.WriteLine(
+                        "Pressione ENTER para mostrar o próximo passo.");
+                    Console.ReadLine();
+                }
             }
 
             break;
