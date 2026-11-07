@@ -55,7 +55,6 @@ ALTER TABLE EstadoCorpo
 CREATE INDEX idx_estado_corpo_passo ON EstadoCorpo(corpo_id, num_passo);
 
 /* 7. Lista de Selects */
-
 /* A) Ver a simulação criada */
 SELECT * FROM Simulacao;
 
@@ -85,6 +84,7 @@ DELETE FROM Simulacao;
 /* F) Comando para uma consulta de um EstadoCorpo utilizando o Explain Select */
 EXPLAIN SELECT * FROM EstadoCorpo WHERE corpo_id = 1 AND num_passo = 50;
 
+/* F.1) Ter a descrição completo dos Corpos e seus estados */
 DESCRIBE EstadoCorpo;
 DESCRIBE Corpo;
 
