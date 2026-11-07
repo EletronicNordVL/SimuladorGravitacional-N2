@@ -129,7 +129,9 @@ public class GravadorUniversoBD : IDisposable
         using (MySqlConnection conexao = ConexaoBD.ObterConexao())
         using (MySqlCommand cmd = new MySqlCommand(sql, conexao))
         {
-            return cmd.ExecuteNonQuery();
+            int linhas = cmd.ExecuteNonQuery();
+            LimparEstadoDaSimulacaoAtual();      // <<< NOVO
+            return linhas;
         }
     }
 
@@ -146,8 +148,20 @@ public class GravadorUniversoBD : IDisposable
 
             int linhasAfetadas = cmd.ExecuteNonQuery();
 
+            if (idSimulacao == idSimulacaoAtual)
+            {
+                LimparEstadoDaSimulacaoAtual();
+            }
+
             return linhasAfetadas > 0;
         }
+    }
+
+    private void LimparEstadoDaSimulacaoAtual()
+    {
+        mapaIdCorpos.Clear();
+        bufferLinhas.Clear();
+        idSimulacaoAtual = 0;
     }
 
     public class ResumoSimulacao
