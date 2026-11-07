@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using SimuladorGravitacional_N2;
 using TrabalhoN2;
 
 /* Programa principal que apresenta um menu para o usuário criar, carregar ou apagar universos gravacionais 2D. */
@@ -237,134 +239,104 @@ while (continuar)
 
             break;
 
-        /* Carregar um universo salvo de um arquivo txt e continuar a simulação. */
         case "2":
 
-            /* Exibir uma mensagem informando que o usuário escolheu carregar um universo salvo. */
-            Console.WriteLine("Carregar universo salvo");
+            Console.WriteLine("Selecionar simulação para replay");
             Console.WriteLine();
 
-            /* Buscar todos os arquivos de universos salvos. */
-            string[] universosSalvos =
-                Directory.GetFiles(
-                    ".",
-                    "universo_*.txt"
-                );
+            GravadorUniversoBD gravadorBD =
+                new GravadorUniversoBD();
 
-            /* Verificar se existem universos salvos. */
-            if (universosSalvos.Length == 0)
+            List<GravadorUniversoBD.ResumoSimulacao> simulacoesSalvas =
+                gravadorBD.ListarSimulacoes();
+
+            if (simulacoesSalvas.Count == 0)
             {
                 Console.WriteLine(
-                    "Nenhum universo salvo encontrado."
-                );
-
+                    "Nenhuma simulação foi encontrada no banco de dados.");
                 break;
             }
 
-            /* Exibir os universos salvos para o usuário escolher. */
-            for (int i = 0; i < universosSalvos.Length; i++)
+            for (int i = 0; i < simulacoesSalvas.Count; i++)
             {
-                /* Exibir o número do universo e o nome do arquivo correspondente. */
+                GravadorUniversoBD.ResumoSimulacao simulacao =
+                    simulacoesSalvas[i];
+
                 Console.WriteLine(
-                    $"{i + 1} - {Path.GetFileName(universosSalvos[i])}"
-                );
+                    $"{i + 1} - {simulacao.Nome} " +
+                    $"(ID: {simulacao.Id}, corpos: {simulacao.QuantidadeCorpos}, " +
+                    $"iterações: {simulacao.QuantidadeIteracoes}, " +
+                    $"criada em: {simulacao.DataCriacao:dd/MM/yyyy HH:mm})");
             }
 
             Console.WriteLine("0 - Voltar");
-
-            /* Solicitar ao usuário que escolha um universo para carregar. */
             Console.WriteLine();
-            Console.Write("Escolha um universo: ");
+            Console.Write("Escolha uma simulação: ");
 
-            /* Inicializar a variável que armazenará a escolha do usuário. */
-            int escolhaUniverso;
+            int escolhaSimulacao;
 
-            /* Verificar se a entrada do usuário é um número válido, caso contrário, solicitar novamente. */
             while (!int.TryParse(
-                       Console.ReadLine(),
-                       out escolhaUniverso))
+                Console.ReadLine(),
+                out escolhaSimulacao))
             {
-                Console.Write(
-                    "Valor inválido. Escolha um universo ou 0 para voltar: "
-                );
+                Console.Write("Digite um número válido: ");
             }
 
-            /* Voltar ao menu principal caso o usuário escolha a opção 0. */
-            if (escolhaUniverso == 0)
+            if (escolhaSimulacao == 0)
             {
                 aguardarEnter = false;
                 Console.Clear();
                 break;
             }
 
-            /* Verificar se o universo escolhido existe na lista. */
-            if (escolhaUniverso < 1 ||
-                escolhaUniverso > universosSalvos.Length)
+            if (escolhaSimulacao < 1 ||
+                escolhaSimulacao > simulacoesSalvas.Count)
             {
-                Console.WriteLine();
                 Console.WriteLine("Opção inválida.");
                 break;
             }
 
-            /*  Obter o caminho do arquivo do universo escolhido pelo usuário. */
-            string arquivoEscolhido =
-                universosSalvos[escolhaUniverso - 1];
+            GravadorUniversoBD.ResumoSimulacao simulacaoSelecionada =
+                simulacoesSalvas[escolhaSimulacao - 1];
 
-            /* Limpar a tela antes de exibir o universo escolhido. */
-            Console.Clear();
+            for (int passo = 1;
+                 passo <= simulacaoSelecionada.QuantidadeIteracoes;
+                 passo++)
+            {
+                List<Corpo> corposPasso =
+                    gravadorBD.CarregarPasso(
+                        simulacaoSelecionada.Id,
+                        passo);
 
-            /*  Criar um gravador de arquivo de texto para carregar o universo salvo. */
-            GravadorArquivoTexto gravadorCarregar =
-                new GravadorArquivoTexto();
+                if (corposPasso.Count == 0)
+                {
+                    Console.WriteLine(
+                        $"Não foram encontrados corpos para o passo {passo}.");
+                    break;
+                }
 
-            /* Carregar o universo salvo do arquivo txt. */
-            Universo universoCarregado =
-                gravadorCarregar.Carregar(
-                    arquivoEscolhido
-                );
+                Console.Clear();
 
-            /* Exibir uma mensagem informando que o universo foi carregado com sucesso. */
-            Console.WriteLine("Universo carregado");
-            Console.WriteLine();
+                Console.WriteLine(
+                    $"Replay: {simulacaoSelecionada.Nome}");
+                Console.WriteLine(
+                    $"Passo {passo} de " +
+                    $"{simulacaoSelecionada.QuantidadeIteracoes}");
+                Console.WriteLine();
 
-            /* Exibir informações sobre o universo carregado, como o nome do arquivo, quantidade de corpos, iterações e tempo entre iterações. */
-            Console.WriteLine(
-                $"Arquivo: {Path.GetFileName(arquivoEscolhido)}"
-            );
+                foreach (Corpo corpo in corposPasso)
+                {
+                    Console.WriteLine(
+                        $"{corpo.Nome} - " +
+                        $"Posição: ({corpo.PosX:F4}, {corpo.PosY:F4}) - " +
+                        $"Velocidade: ({corpo.VelX:F4}, {corpo.VelY:F4})");
+                }
 
-            Console.WriteLine();
-
-            /* Exibir a quantidade de corpos, iterações e tempo entre iterações do universo carregado. */
-            Console.WriteLine(
-                $"Quantidade de corpos: {universoCarregado.Corpos.Count}"
-            );
-
-            /* Exibir a quantidade de iterações e o tempo entre iterações do universo carregado. */
-            Console.WriteLine(
-                $"Quantidade de iterações: {universoCarregado.QuantidadeIteracoes}"
-            );
-
-            /* Exibir o tempo entre iterações do universo carregado. */
-            Console.WriteLine(
-                $"Tempo entre iterações: {universoCarregado.TempoEntreIteracoes}"
-            );
-
-            Console.WriteLine();
-            Console.WriteLine("Corpos carregados:");
-            Console.WriteLine();
-
-            /* Exibir o estado inicial do universo carregado, mostrando os corpos e suas propriedades. */
-            universoCarregado.ExibirEstado();
-
-            Console.WriteLine();
-            Console.WriteLine("Continuando simulação...");
-            Console.WriteLine();
-
-            /* Executar a simulação do universo carregado com base na quantidade de iterações e tempo entre iterações informados no arquivo. */
-            universoCarregado.ExecutarSimulacao(
-                universoCarregado.QuantidadeIteracoes,
-                universoCarregado.TempoEntreIteracoes
-            );
+                Console.WriteLine();
+                Console.WriteLine(
+                    "Pressione ENTER para mostrar o próximo passo.");
+                Console.ReadLine();
+            }
 
             break;
 
