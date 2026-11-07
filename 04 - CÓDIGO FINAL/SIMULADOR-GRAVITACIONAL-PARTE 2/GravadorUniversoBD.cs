@@ -70,6 +70,17 @@ public class GravadorUniversoBD
         }
     }
 
+    public int ExcluirTodasSimulacoes()
+    {
+        string sql = "DELETE FROM Simulacao;";
+
+        using (MySqlConnection conexao = ConexaoBD.ObterConexao())
+        using (MySqlCommand cmd = new MySqlCommand(sql, conexao))
+        {
+            return cmd.ExecuteNonQuery();
+        }
+    }
+
     public bool ExcluirSimulacao(int idSimulacao)
     {
         string sql = @"
