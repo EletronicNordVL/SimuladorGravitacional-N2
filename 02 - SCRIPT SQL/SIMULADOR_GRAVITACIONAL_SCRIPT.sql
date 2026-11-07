@@ -97,5 +97,16 @@ BEGIN
     END $$ 
 DELIMITER ;
 
-/* G.1) Testar ou executar manualmente a limpeza */
+/* G.1) Executar a limpeza automaticamente uma vez por dia */
+CREATE EVENT IF NOT EXISTS ev_limpar_simulacoes_antigas
+ON SCHEDULE EVERY 1 DAY
+STARTS CURRENT_TIMESTAMP + INTERVAL 1 DAY
+DO
+    CALL sp_limpar_simulacoes_antigas();
+
+/* G.2) Para testar a limpeza manualmente, remova o comentário */
 CALL sp_limpar_simulacoes_antigas();
+
+/* 6.3) Verificar se o Agendador está ligado */
+SHOW VARIABLES LIKE 'event_scheduler';
+SHOW EVENTS FROM simulador_gravitacional;
