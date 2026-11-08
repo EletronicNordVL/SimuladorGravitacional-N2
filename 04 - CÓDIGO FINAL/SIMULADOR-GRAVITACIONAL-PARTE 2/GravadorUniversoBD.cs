@@ -13,26 +13,28 @@ public class GravadorUniversoBD : IDisposable
     private Dictionary<Corpo, int> mapaIdCorpos =
         new Dictionary<Corpo, int>();
 
-    // Linhas de EstadoCorpo enviadas ao banco em cada INSERT.
-    // De 500 a 1000 equilibra poucas idas ao banco e pacotes pequenos.
+    /* Grava várias linhas de uma vez, em um único INSERT, para reduzir
+     * overhead de comunicação com o banco. */
     private const int LinhasPorBloco = 500;
 
-    // Conexão mantida aberta durante a simulação (evita abrir uma por passo).
+    /* Conexão aberta para gravar os blocos de linhas. É aberta na primeira
+     * vez que o DescarregarBuffer é chamado, e fechada no FinalizarSimulacao. */
     private MySqlConnection? conexaoGravacao;
 
-    // Linhas (cópias dos valores dos corpos) esperando para serem gravadas.
+    /* Buffer de linhas a gravar. Cada linha é uma "foto" do estado de um corpo
+     * em um passo da simulação. */
     private readonly List<LinhaEstado> bufferLinhas = new List<LinhaEstado>();
 
-    // Marca que um bloco falhou: o FinalizarSimulacao não tenta gravar de novo.
+    /* Indica se houve algum erro na gravação. 
+     * Se houver, o FinalizarSimulacao não tenta gravar o que sobrou no buffer, 
+     * porque provavelmente vai falhar de novo. */
     private bool erroNaGravacao;
 
-    // Mede SOMENTE o tempo escrevendo no banco, para o relatório separar
-    // tempo de cálculo e tempo de gravação.
+    /* Cronômetro para medir o tempo total gasto na gravação dos passos da simulação. */
     private readonly Stopwatch cronometroGravacao = new Stopwatch();
     public TimeSpan TempoTotalGravacao => cronometroGravacao.Elapsed;
 
-    // "Foto" do corpo em um passo. É uma cópia dos valores porque o objeto
-    // Corpo muda na iteração seguinte, antes de a linha ser gravada.
+    /* Estrutura para armazenar o estado de um corpo em um passo da simulação. */
     private readonly struct LinhaEstado
     {
         public readonly int CorpoId;
@@ -52,6 +54,8 @@ public class GravadorUniversoBD : IDisposable
         }
     }
 
+    /* Inicia uma nova simulação no banco de dados, criando registros para a simulação e seus corpos.
+     * Retorna o ID da simulação criada. */
     public int IniciarSimulacao(
         string nomeSimulacao,
         List<Corpo> corpos,
@@ -63,6 +67,8 @@ public class GravadorUniversoBD : IDisposable
         erroNaGravacao = false;
         cronometroGravacao.Reset();
 
+        /* Abre uma conexão com o banco de dados e inicia uma 
+         * transação para garantir que todas as operações sejam atômicas. */
         using (MySqlConnection conexao = ConexaoBD.ObterConexao())
         {
             using (MySqlTransaction transacao = conexao.BeginTransaction())
@@ -122,6 +128,7 @@ public class GravadorUniversoBD : IDisposable
         }
     }
 
+    /* Exclui todas as simulações do banco de dados. Retorna o número de linhas afetadas. */
     public int ExcluirTodasSimulacoes()
     {
         string sql = "DELETE FROM Simulacao;";
@@ -135,6 +142,7 @@ public class GravadorUniversoBD : IDisposable
         }
     }
 
+    /* Exclui uma simulação específica do banco de dados. Retorna true se a exclusão foi bem-sucedida, false caso contrário. */
     public bool ExcluirSimulacao(int idSimulacao)
     {
         string sql = @"
@@ -157,6 +165,7 @@ public class GravadorUniversoBD : IDisposable
         }
     }
 
+    /* Limpa o estado da simulação atual, incluindo o mapa de corpos e o buffer de linhas. */
     private void LimparEstadoDaSimulacaoAtual()
     {
         mapaIdCorpos.Clear();
@@ -164,6 +173,8 @@ public class GravadorUniversoBD : IDisposable
         idSimulacaoAtual = 0;
     }
 
+    /* Classe para armazenar o resumo de uma simulação, incluindo informações como ID, nome, 
+     * data de criação, quantidade de corpos, quantidade de iterações e tempo entre iterações. */
     public class ResumoSimulacao
     {
         public int Id { get; set; }
@@ -179,12 +190,17 @@ public class GravadorUniversoBD : IDisposable
         }
     }
 
+    /* Carrega o estado de todos os corpos em um determinado passo da simulação. 
+     * Retorna uma lista de objetos Corpo representando o estado dos corpos nesse passo. */
     public List<Corpo> CarregarPasso(
     int idSimulacao,
     int numPasso)
     {
         List<Corpo> corpos = new List<Corpo>();
 
+        /* Consulta do MySQL para obter o estado dos corpos em um determinado passo da simulação. 
+         * A consulta seleciona informações como nome, massa, densidade, posição, velocidade, 
+         * força e aceleração. */
         string sql = @"
         SELECT c.nome, c.massa, c.densidade,
                ec.pos_x, ec.pos_y, ec.vel_x, ec.vel_y,
@@ -196,12 +212,17 @@ public class GravadorUniversoBD : IDisposable
           AND ec.num_passo = @numPasso
         ORDER BY c.id_corpo;";
 
+        /* Abre uma conexão com o banco de dados e executa a consulta para obter o estado dos corpos. 
+         * Os resultados são lidos e armazenados em uma lista de objetos Corpo. */
         using (MySqlConnection conexao = ConexaoBD.ObterConexao())
         using (MySqlCommand cmd = new MySqlCommand(sql, conexao))
         {
             cmd.Parameters.AddWithValue("@idSimulacao", idSimulacao);
             cmd.Parameters.AddWithValue("@numPasso", numPasso);
 
+            /* Executa a consulta e lê os resultados usando um MySqlDataReader. 
+             * Para cada linha retornada, cria um objeto Corpo com 
+             * as informações do estado do corpo. */
             using (MySqlDataReader reader = cmd.ExecuteReader())
             {
                 while (reader.Read())
@@ -230,6 +251,9 @@ public class GravadorUniversoBD : IDisposable
         return corpos;
     }
 
+    /* Lista todas as simulações armazenadas no banco de dados, 
+     * retornando uma lista de objetos ResumoSimulacao contendo 
+     * informações resumidas sobre cada simulação. */
     public List<ResumoSimulacao> ListarSimulacoes()
     {
         List<ResumoSimulacao> simulacoes =
@@ -305,6 +329,7 @@ public class GravadorUniversoBD : IDisposable
             return;
         }
 
+        /* Inicia o cronômetro para medir o tempo gasto na gravação do bloco de linhas. */
         cronometroGravacao.Start();
         try
         {
@@ -390,6 +415,7 @@ public class GravadorUniversoBD : IDisposable
         }
     }
 
+    /* Fecha a conexão com o banco de dados, se estiver aberta. */
     private void FecharConexao()
     {
         conexaoGravacao?.Dispose();
