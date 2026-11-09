@@ -117,9 +117,17 @@ public class Universo
         });
     }
 
-    /* Verifica colisões e recalcula as velocidades quando necessário. */
     public void TratarColisoes()
     {
+        /* O raio depende só de massa e densidade (não muda no laço), mas Raio é uma
+         * propriedade calculada com raiz cúbica. Calculá-lo uma vez por corpo troca
+         * n² raízes cúbicas por n. */
+        double[] raios = new double[Corpos.Count];
+        for (int k = 0; k < Corpos.Count; k++)
+        {
+            raios[k] = Corpos[k].Raio;
+        }
+
         for (int i = 0; i < Corpos.Count; i++)
         {
             for (int j = i + 1; j < Corpos.Count; j++)
@@ -128,14 +136,20 @@ public class Universo
                 Corpo corpo1 = Corpos[i];
                 Corpo corpo2 = Corpos[j];
 
-                /* Calcula a distância entre os centros dos corpos. */
-                double distancia = CalcularDistancia(corpo1, corpo2);
-
                 /* A soma dos raios define o limite para ocorrer uma colisão. */
-                double somaRaios = corpo1.Raio + corpo2.Raio;
+                double somaRaios = raios[i] + raios[j];
 
-                if (distancia <= somaRaios)
+                /* Compara os QUADRADOS para evitar a raiz quadrada nos pares que não
+                 * colidem (a maioria): d <= r equivale a d² <= r², pois ambos são positivos. */
+                double deltaX = corpo2.PosX - corpo1.PosX;
+                double deltaY = corpo2.PosY - corpo1.PosY;
+                double distanciaQuadrada = deltaX * deltaX + deltaY * deltaY;
+
+                if (distanciaQuadrada <= somaRaios * somaRaios)
                 {
+                    /* Só agora calcula a distância real, necessária para a normal. */
+                    double distancia = Math.Sqrt(distanciaQuadrada);
+
                     /* Colisão detectada entre os corpos. */
                     Console.WriteLine(
                         $"Colisão detectada entre {corpo1.Nome} e {corpo2.Nome}");
@@ -239,41 +253,74 @@ public class Universo
         }
     }
 
-    /* Executar as iterações da simulação, medir o tempo e gravar direto no MySQL. */
+    /* Método que executa as iterações da simulação, mede o tempo de cada fase e grava no MySQL. */
     public void ExecutarSimulacao(
         int iteracoes,
         double tempoEntreIteracoes,
-        string nomeSimulacao = "SIMULADOR_GRAVITACIONAL_SCRIPT")
+        string? nomeSimulacao = null)
     {
         this.QuantidadeIteracoes = iteracoes;
         this.TempoEntreIteracoes = tempoEntreIteracoes;
 
-        /* Iniciar o registro no Banco de Dados MySQL */
-        gravador.IniciarSimulacao(nomeSimulacao, Corpos, iteracoes, tempoEntreIteracoes);
+        /* Nome padrão com data e hora, para distinguir as simulações na listagem do replay. */
+        nomeSimulacao ??= $"Simulação {DateTime.Now:dd/MM/yyyy HH:mm:ss}";
 
-        double tempoDecorrido = 0;
-
-        /* Iniciar o cronometro antes do laço de iterações */
+        /* Cronômetro total: começa ANTES de iniciar o registro no banco, porque criar
+         * a simulação também conta como tempo de gravação. */
         Stopwatch cronometro = Stopwatch.StartNew();
 
-        for (int i = 1; i <= iteracoes; i++)
+        /* Cronômetros por fase: acumulam o tempo de todas as iterações. */
+        Stopwatch tempoForcas = new Stopwatch();
+        Stopwatch tempoPosicoes = new Stopwatch();
+        Stopwatch tempoColisoes = new Stopwatch();
+
+        try
         {
-            tempoDecorrido += tempoEntreIteracoes;
+            /* Iniciar o registro no Banco de Dados MySQL */
+            gravador.IniciarSimulacao(nomeSimulacao, Corpos, iteracoes, tempoEntreIteracoes);
 
-            CalcularForcas();
-            AtualizarPosicoes(tempoEntreIteracoes);
-            TratarColisoes();
+            /* Passo 0 = estado inicial, antes de qualquer iteração. Assim o replay
+             * mostra a configuração de partida (forças e acelerações ainda zeradas). */
+            gravador.GravarPasso(0, 0, Corpos);
 
-            /* Gravar o histórico do passo no MySQL */
-            gravador.GravarPasso(i, tempoDecorrido, Corpos);
+            double tempoDecorrido = 0;
+
+            for (int i = 1; i <= iteracoes; i++)
+            {
+                tempoDecorrido += tempoEntreIteracoes;
+
+                tempoForcas.Start();
+                CalcularForcas();
+                tempoForcas.Stop();
+
+                tempoPosicoes.Start();
+                AtualizarPosicoes(tempoEntreIteracoes);
+                tempoPosicoes.Stop();
+
+                tempoColisoes.Start();
+                TratarColisoes();
+                tempoColisoes.Stop();
+
+                /* Gravar o histórico do passo no MySQL (acumula e grava em blocos) */
+                gravador.GravarPasso(i, tempoDecorrido, Corpos);
+            }
+        }
+        finally
+        {
+            /* Grava o último bloco pendente e fecha a conexão, mesmo se der erro no meio. */
+            gravador.FinalizarSimulacao();
+            cronometro.Stop();
         }
 
-        /* Parar o cronômetro ao finalizar todas as iterações */
-        cronometro.Stop();
+        TimeSpan calculo = tempoForcas.Elapsed + tempoPosicoes.Elapsed + tempoColisoes.Elapsed;
 
         Console.WriteLine();
-        Console.WriteLine(
-            $"[DESEMPENHO N2] Tempo total: {cronometro.Elapsed.TotalMilliseconds:F2} ms ({cronometro.Elapsed.TotalSeconds:F2} segundos)");
+        Console.WriteLine($"[DESEMPENHO N2] Tempo total: {cronometro.Elapsed.TotalMilliseconds:F2} ms ({cronometro.Elapsed.TotalSeconds:F2} s)");
+        Console.WriteLine($"  Cálculo (forças + posições + colisões): {calculo.TotalMilliseconds:F2} ms");
+        Console.WriteLine($"    Forças   : {tempoForcas.Elapsed.TotalMilliseconds:F2} ms");
+        Console.WriteLine($"    Posições : {tempoPosicoes.Elapsed.TotalMilliseconds:F2} ms");
+        Console.WriteLine($"    Colisões : {tempoColisoes.Elapsed.TotalMilliseconds:F2} ms");
+        Console.WriteLine($"  Gravação no banco: {gravador.TempoTotalGravacao.TotalMilliseconds:F2} ms");
         Console.WriteLine();
     }
 

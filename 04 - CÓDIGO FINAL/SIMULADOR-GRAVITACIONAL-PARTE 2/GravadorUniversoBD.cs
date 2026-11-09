@@ -75,11 +75,17 @@ public class GravadorUniversoBD : IDisposable
             {
                 try
                 {
+                    /* Insere um registro na tabela Simulacao com as informações fornecidas, 
+                     * incluindo o nome da simulação, quantidade de corpos, quantidade de iterações 
+                     * e tempo entre iterações. */
                     string sqlSimulacao = @"INSERT INTO Simulacao (nome, data_criacao, qtd_corpos, qtd_iteracoes, tempo_entre_iteracoes)
                     VALUES (@nome, NOW(), @qtdCorpos, @qtdIteracoes, @tempoEntreIteracoes);";
 
                     using (MySqlCommand cmd = new MySqlCommand(sqlSimulacao, conexao, transacao))
                     {
+                        /* Adiciona os parâmetros necessários para a inserção da simulação no banco de dados, 
+                         * incluindo o nome da simulação, quantidade de corpos, quantidade de iterações 
+                         * e tempo entre iterações. */
                         cmd.Parameters.AddWithValue("@nome", nomeSimulacao);
                         cmd.Parameters.AddWithValue("@qtdCorpos", corpos.Count);
                         cmd.Parameters.AddWithValue("@qtdIteracoes", qtdIteracoes);
@@ -89,11 +95,15 @@ public class GravadorUniversoBD : IDisposable
                         this.idSimulacaoAtual = (int)cmd.LastInsertedId;
                     }
 
+                    /* Cria registros para cada corpo na tabela Corpo, associando-os à simulação atual. 
+                     * O ID gerado para cada corpo é armazenado no mapa de corpos para referência futura. */
                     string sqlCorpo = @"INSERT INTO Corpo (id_simulacao, nome, massa, densidade) 
                     VALUES (@idSimulacao, @nome, @massa, @densidade);";
 
                     foreach (var corpo in corpos)
                     {
+                        /* Para cada corpo, cria um registro no banco de dados e armazena o ID 
+                         * gerado no mapa de corpos. */
                         using (MySqlCommand cmdCorpo = new MySqlCommand(sqlCorpo, conexao, transacao))
                         {
                             cmdCorpo.Parameters.AddWithValue("@idSimulacao", this.idSimulacaoAtual);
@@ -107,6 +117,8 @@ public class GravadorUniversoBD : IDisposable
                         }
                     }
 
+                    /* Se todas as operações foram bem-sucedidas, a transação é confirmada, 
+                     * o cronômetro de gravação é parado e o ID da simulação atual é retornado. */
                     transacao.Commit();
                     cronometroGravacao.Stop();
                     Console.WriteLine(
@@ -117,6 +129,8 @@ public class GravadorUniversoBD : IDisposable
                 }
                 catch (Exception ex)
                 {
+                    /* Em caso de erro, a transação é revertida, 
+                     * o mapa de corpos é limpo e o ID da simulação atual é redefinido para 0. */
                     cronometroGravacao.Stop();
                     transacao.Rollback();
                     mapaIdCorpos.Clear();
@@ -149,6 +163,8 @@ public class GravadorUniversoBD : IDisposable
         DELETE FROM Simulacao
         WHERE id_simulacao = @idSimulacao;";
 
+        /* Abre uma conexão com o banco de dados e executa a exclusão da simulação especificada. 
+         * Se a simulação excluída for a simulação atual, o estado da simulação atual é limpo. */
         using (MySqlConnection conexao = ConexaoBD.ObterConexao())
         using (MySqlCommand cmd = new MySqlCommand(sql, conexao))
         {
@@ -156,6 +172,7 @@ public class GravadorUniversoBD : IDisposable
 
             int linhasAfetadas = cmd.ExecuteNonQuery();
 
+            /* Se a simulação excluída for a simulação atual, limpa o estado da simulação atual. */
             if (idSimulacao == idSimulacaoAtual)
             {
                 LimparEstadoDaSimulacaoAtual();
@@ -168,6 +185,7 @@ public class GravadorUniversoBD : IDisposable
     /* Limpa o estado da simulação atual, incluindo o mapa de corpos e o buffer de linhas. */
     private void LimparEstadoDaSimulacaoAtual()
     {
+        /* Limpa o mapa de corpos e o buffer de linhas, e redefine o ID da simulação atual para 0. */
         mapaIdCorpos.Clear();
         bufferLinhas.Clear();
         idSimulacaoAtual = 0;
@@ -177,11 +195,17 @@ public class GravadorUniversoBD : IDisposable
      * data de criação, quantidade de corpos, quantidade de iterações e tempo entre iterações. */
     public class ResumoSimulacao
     {
+        /* Propriedade para armazenar o ID da simulação. */
         public int Id { get; set; }
+        /* Propriedade para armazenar o nome da simulação. */
         public string Nome { get; set; }
+        /* Propriedade para armazenar a data de criação da simulação. */
         public DateTime DataCriacao { get; set; }
+        /* Propriedade para armazenar a quantidade de corpos na simulação. */
         public int QuantidadeCorpos { get; set; }
+        /* Propriedade para armazenar a quantidade de iterações na simulação. */
         public int QuantidadeIteracoes { get; set; }
+        /* Propriedade para armazenar o tempo entre iterações na simulação. */
         public double TempoEntreIteracoes { get; set; }
 
         public ResumoSimulacao()
@@ -227,6 +251,10 @@ public class GravadorUniversoBD : IDisposable
             {
                 while (reader.Read())
                 {
+                    /* Cria um objeto Corpo com as informações obtidas do banco de dados. 
+                     * O construtor do Corpo recebe os valores de nome, massa, densidade, posição e velocidade. 
+                     * Em seguida, os valores de força e aceleração são atribuídos 
+                     * às propriedades correspondentes. */
                     Corpo corpo = new Corpo(
                         reader.GetString("nome"),
                         reader.GetDouble("massa"),
@@ -236,6 +264,8 @@ public class GravadorUniversoBD : IDisposable
                         reader.GetDouble("vel_x"),
                         reader.GetDouble("vel_y"));
 
+                    /* Atribui os valores de força e aceleração obtidos do banco de dados 
+                     * às propriedades correspondentes do objeto Corpo. */
                     corpo.ForcaX = reader.GetDouble("forca_x");
                     corpo.ForcaY = reader.GetDouble("forca_y");
                     corpo.AceleracaoX =
@@ -259,16 +289,24 @@ public class GravadorUniversoBD : IDisposable
         List<ResumoSimulacao> simulacoes =
             new List<ResumoSimulacao>();
 
+        /* Consulta SQL para selecionar informações resumidas de todas as simulações, 
+         * ordenadas por data de criação e ID da simulação em ordem decrescente. */
         string sql = @"
         SELECT id_simulacao, nome, data_criacao,
                qtd_corpos, qtd_iteracoes, tempo_entre_iteracoes
         FROM Simulacao
         ORDER BY data_criacao DESC, id_simulacao DESC;";
 
+        /* Abre uma conexão com o banco de dados, executa a consulta e lê os resultados usando um 
+         * MySqlDataReader. Para cada linha retornada, cria um objeto ResumoSimulacao 
+         * com as informações da simulação. */
         using (MySqlConnection conexao = ConexaoBD.ObterConexao())
         using (MySqlCommand cmd = new MySqlCommand(sql, conexao))
         using (MySqlDataReader reader = cmd.ExecuteReader())
         {
+            /* Lê os resultados da consulta e cria objetos ResumoSimulacao para cada simulação encontrada. 
+             * Cada objeto é preenchido com informações como ID, nome, data de criação, quantidade de corpos, 
+             * quantidade de iterações e tempo entre iterações. */
             while (reader.Read())
             {
                 ResumoSimulacao simulacao =
@@ -291,6 +329,7 @@ public class GravadorUniversoBD : IDisposable
             }
         }
 
+        /* Retorna a lista de simulações encontradas no banco de dados. */
         return simulacoes;
     }
 
@@ -344,6 +383,9 @@ public class GravadorUniversoBD : IDisposable
                         "INSERT INTO EstadoCorpo (corpo_id, num_passo, tempo_decorrido, " +
                         "pos_x, pos_y, vel_x, vel_y, forca_x, forca_y, aceleracao_x, aceleracao_y) VALUES ");
 
+                    /* Cria um comando MySQL para executar a inserção em lote. Cada linha do 
+                     * buffer é adicionada como um conjunto de parâmetros com sufixos únicos 
+                     * para evitar conflitos. */
                     using (MySqlCommand cmd = new MySqlCommand())
                     {
                         cmd.Connection = conexaoGravacao;
