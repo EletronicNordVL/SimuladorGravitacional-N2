@@ -3,6 +3,8 @@ using SimuladorGravitacional_N2;
 using System.Collections.Concurrent;
 using TrabalhoN2;
 
+/* O namespace SimuladorGravitacional_N2 contém classes relacionadas à simulação gravitacional, 
+ * incluindo a classe ConexaoBD para gerenciar a conexão com o banco de dados MySQL. */
 var gravadoresAtivos = new ConcurrentDictionary<int, GravadorUniversoBD>();
 
 /* Este projeto implementa uma simulação de um universo com corpos celestes, permitindo a criação, manipulação e exportação de estados do universo. 
@@ -69,6 +71,7 @@ app.MapPost("/api/universes/create", (CreateRequest request) =>
 /* Rota para avançar a simulação em um número de passos. */
 app.MapPost("/api/simulation/step", (StepRequest request) =>
 {
+    /* Valida se o estado do universo na requisição não é nulo. */
     ArgumentNullException.ThrowIfNull(request.State);
 
     /* Converte o estado do universo recebido na requisição para um objeto Universo. */
@@ -92,18 +95,25 @@ app.MapPost("/api/simulation/step", (StepRequest request) =>
         request.State.Elapsed + steps * universe.TempoEntreIteracoes);
 });
 
+/* Rota para listar todas as simulações salvas no banco de dados. */
 app.MapGet("/api/universes", () =>
 {
+    /* Cria uma instância do GravadorUniversoBD para acessar o banco de dados e listar as simulações salvas. */
     GravadorUniversoBD gravadorBD =
         new GravadorUniversoBD();
 
+    /* Retorna uma lista de simulações salvas, contendo o ID, nome e data de criação, 
+     * ordenadas pela data de modificação em ordem decrescente. */
     return gravadorBD.ListarSimulacoes()
         .Select(simulacao => new
         {
+            /* Propriedades do objeto anônimo retornado para cada simulação salva. */
             id = simulacao.Id,
             name = simulacao.Nome,
             modified = simulacao.DataCriacao
         })
+        /* Ordena as simulações salvas pela data de modificação em ordem decrescente, 
+         * para que as mais recentes apareçam primeiro. */
         .OrderByDescending(simulacao => simulacao.modified)
         .ToList();
 });
@@ -115,6 +125,7 @@ app.MapPost("/api/universes/save", (Snapshot state) =>
     var universe = state.ToUniverse();
     lock (fileLock)
     {
+        /* Gera um nome de arquivo único para o universo salvo, garantindo que não haja conflitos com arquivos existentes. */
         var number = 1;
         while (File.Exists(Path.Combine(storage, $"universo_{number}.txt"))) number++;
         var name = $"universo_{number}.txt";
@@ -149,12 +160,15 @@ app.MapDelete("/api/universes/{name}", (string name) =>
         if (!File.Exists(path)) return Results.NotFound(new { error = "Universo não encontrado." });
         File.Delete(path);
     }
+    /* Retorna um status 204 (No Content) indicando que a operação de exclusão foi bem-sucedida, 
+     * sem conteúdo adicional na resposta. */
     return Results.NoContent();
 });
 
 /*  Rota para exportar o estado atual do universo em um arquivo de texto. */
 app.MapPost("/api/universes/export", (Snapshot state) =>
 {
+    /* Converte o estado do universo recebido na requisição para um objeto Universo. */
     var universe = state.ToUniverse();
 
     /* Cria uma lista de linhas para o arquivo de exportação, começando com o cabeçalho contendo a quantidade de corpos, quantidade de iterações e tempo entre iterações. */
@@ -196,6 +210,8 @@ app.MapPost("/api/universes/import", async (HttpRequest request) =>
     /* Itera sobre cada linha do arquivo (exceto o cabeçalho) para criar os corpos e adicioná-los ao estado do universo. */
     foreach (var line in lines.Skip(1))
     {
+        /* Divide a linha em campos separados por ponto e vírgula e valida se há exatamente sete campos 
+         * (nome, massa, densidade, posição X, posição Y, velocidade X, velocidade Y). */
         var fields = line.Trim().Split(';');
         if (fields.Length != 7) throw new ArgumentException("Cada corpo deve ter sete campos.");
         state.Corpos.Add(new Corpo(fields[0], Parse(fields[1]), Parse(fields[2]), Parse(fields[3]), Parse(fields[4]), Parse(fields[5]), Parse(fields[6])));
@@ -215,6 +231,7 @@ double Parse(string value) => double.Parse(value.Trim().Replace(',', '.'), Cultu
 /* Função para validar o nome do arquivo e garantir que ele siga o padrão "universo_{número}.txt". */
 string SafePath(string name)
 {
+    /* Valida se o nome do arquivo é nulo, vazio ou contém apenas espaços em branco. */
     if (!System.Text.RegularExpressions.Regex.IsMatch(name, @"^universo_[0-9]+\.txt$"))
         throw new ArgumentException("Nome de arquivo inválido.");
     return Path.Combine(storage, name);
@@ -229,6 +246,8 @@ record CreateRequest(int Count);
 /* Classe de requisição para avançar a simulação em um número de passos. */
 record StepRequest(Snapshot State, int Steps);
 
+/* Classe Snapshot representa o estado de um universo em um determinado ponto no tempo, incluindo os corpos presentes, 
+ * a quantidade de iterações, o tempo entre iterações, a iteração atual e o tempo decorrido. */
 record Snapshot(
     List<Corpo> Corpos,
     int QuantidadeIteracoes,
@@ -237,12 +256,14 @@ record Snapshot(
     double Elapsed,
     int IdSimulacao = 0)
 {
+    /* Construtor da classe Snapshot, que inicializa os campos com os valores fornecidos. */
     public static Snapshot From(
         Universo u,
         int iteration,
         double elapsed,
         int idSimulacao = 0)
     {
+        /* Valida os corpos do universo antes de criar o Snapshot. */
         ValidateBodies(u.Corpos);
         if (u.Corpos.Any(c => new[] { c.ForcaX, c.ForcaY, c.AceleracaoX, c.AceleracaoY }.Any(v => !double.IsFinite(v))))
             throw new ArgumentException("O cálculo excedeu a precisão numérica. Reduza o passo de tempo ou aumente a distância entre os corpos.");

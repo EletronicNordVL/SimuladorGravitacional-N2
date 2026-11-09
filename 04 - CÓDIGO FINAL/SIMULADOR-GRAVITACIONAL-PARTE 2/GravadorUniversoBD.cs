@@ -7,15 +7,19 @@ using TrabalhoN2;
 
 namespace SimuladorGravitacional_N2;
 
+/* Essa classe é responsável por gravar o estado do universo em um banco de dados MySQL. */
 public class GravadorUniversoBD : IDisposable
 {
+    /* ID da simulação atual, usado para associar os corpos e seus estados à simulação correta no banco de dados. */
     private int idSimulacaoAtual;
+    /* Mapa que associa cada objeto Corpo ao seu ID correspondente no banco de dados. 
+     * Isso é necessário para gravar corretamente o estado de cada corpo em cada passo da simulação. */
     private Dictionary<Corpo, int> mapaIdCorpos =
         new Dictionary<Corpo, int>();
 
     /* Grava várias linhas de uma vez, em um único INSERT, para reduzir
      * overhead de comunicação com o banco. */
-    private const int LinhasPorBloco = 500;
+private const int LinhasPorBloco = 500;
 
     /* Conexão aberta para gravar os blocos de linhas. É aberta na primeira
      * vez que o DescarregarBuffer é chamado, e fechada no FinalizarSimulacao. */
@@ -32,16 +36,26 @@ public class GravadorUniversoBD : IDisposable
 
     /* Cronômetro para medir o tempo total gasto na gravação dos passos da simulação. */
     private readonly Stopwatch cronometroGravacao = new Stopwatch();
+
+    /* Propriedade para obter o tempo total gasto na gravação dos passos da simulação. */
     public TimeSpan TempoTotalGravacao => cronometroGravacao.Elapsed;
 
     /* Estrutura para armazenar o estado de um corpo em um passo da simulação. */
     private readonly struct LinhaEstado
     {
+        /* Campos públicos para armazenar as informações do estado do corpo em um passo da simulação. */
         public readonly int CorpoId;
+
+        /* Campos públicos para armazenar as informações do estado do corpo em um passo da simulação. */
         public readonly int NumPasso;
+
+        /* Campos públicos para armazenar as informações do estado do corpo em um passo da simulação. */
         public readonly double TempoDecorrido, PosX, PosY, VelX, VelY;
+
+        /* Campos públicos para armazenar as informações do estado do corpo em um passo da simulação. */
         public readonly double ForcaX, ForcaY, AceleracaoX, AceleracaoY;
 
+        /* Construtor da estrutura LinhaEstado, que inicializa os campos com os valores fornecidos. */
         public LinhaEstado(int corpoId, int numPasso, double tempoDecorrido, Corpo c)
         {
             CorpoId = corpoId;
@@ -159,6 +173,9 @@ public class GravadorUniversoBD : IDisposable
     /* Exclui uma simulação específica do banco de dados. Retorna true se a exclusão foi bem-sucedida, false caso contrário. */
     public bool ExcluirSimulacao(int idSimulacao)
     {
+        /* Consulta SQL para excluir a simulação com o ID especificado. 
+         * A exclusão é feita na tabela Simulacao, e todas as linhas associadas 
+         * a essa simulação serão removidas devido às restrições de chave estrangeira. */
         string sql = @"
         DELETE FROM Simulacao
         WHERE id_simulacao = @idSimulacao;";
@@ -178,6 +195,8 @@ public class GravadorUniversoBD : IDisposable
                 LimparEstadoDaSimulacaoAtual();
             }
 
+            /* Retorna true se pelo menos uma linha foi afetada (ou seja, a simulação foi excluída com sucesso), 
+             * caso contrário, retorna false. */
             return linhasAfetadas > 0;
         }
     }

@@ -8,6 +8,7 @@ using TrabalhoN2;
 /* Programa principal que apresenta um menu para o usuário criar, carregar ou apagar universos gravacionais 2D. */
 bool continuar = true;
 
+/* Loop principal que mantém o programa em execução até que o usuário escolha sair. */
 while (continuar)
 {
     /* Apresentar o menu de opções para o usuário, permitindo criar um novo universo ou carregar um universo salvo. */
@@ -84,11 +85,13 @@ while (continuar)
             /* Voltar ao menu principal caso o usuário escolha a opção 0 após informar um valor inválido. */
             if (quantidadeCorpos == 0)
             {
+                /* Não aguardar ENTER antes de voltar ao menu principal. */
                 aguardarEnter = false;
                 Console.Clear();
                 break;
             }
 
+            /* Criar uma instância do universo com base na quantidade de corpos informada pelo usuário. */
             Universo universo = new Universo();
 
             /* Gerar corpos aleatórios com base na quantidade informada pelo usuário. */
@@ -107,12 +110,16 @@ while (continuar)
                     out quantidadeIteracoes)
                 || quantidadeIteracoes <= 0)
             {
+                /* Caso a quantidade de iterações informada seja inválida, 
+                 * solicitar ao usuário que informe um valor válido ou 0 para voltar ao menu principal. */
                 while (true)
                 {
+                    /* Solicitar ao usuário que informe uma quantidade de iterações válida ou 0 para voltar ao menu principal. */
                     Console.Write(
                         "Valor inválido. Digite um número válido ou 0 para voltar: "
                     );
 
+                    /* Ler a entrada do usuário novamente. */
                     entradaIteracoes = Console.ReadLine();
 
                     /* Voltar ao menu principal caso o usuário escolha a opção 0 após informar um valor inválido. */
@@ -136,6 +143,7 @@ while (continuar)
             /* Voltar ao menu principal caso o usuário escolha a opção 0 após informar um valor inválido. */
             if (quantidadeIteracoes == 0)
             {
+                /*  Não aguardar ENTER antes de voltar ao menu principal. */
                 aguardarEnter = false;
                 Console.Clear();
                 break;
@@ -165,6 +173,7 @@ while (continuar)
                     CultureInfo.InvariantCulture,
                     out tempoEntreIteracoes
                 )
+                /* Verificar se o tempo informado é maior que zero. */
                 && tempoEntreIteracoes > 0;
 
             /* Caso o tempo informado seja inválido, solicitar ao usuário que informe um valor válido ou 0 para voltar ao menu principal. */
@@ -172,6 +181,7 @@ while (continuar)
             {
                 while (true)
                 {
+                    /* Solicitar ao usuário que informe um tempo válido ou 0 para voltar ao menu principal. */
                     Console.Write(
                         "Valor inválido. Digite um tempo válido ou 0 para voltar: "
                     );
@@ -208,6 +218,7 @@ while (continuar)
             /* Voltar ao menu principal caso o usuário escolha a opção 0 após informar um valor inválido. */
             if (tempoEntreIteracoes == 0)
             {
+                /*  Não aguardar ENTER antes de voltar ao menu principal. */
                 aguardarEnter = false;
                 Console.Clear();
                 break;
@@ -239,29 +250,41 @@ while (continuar)
 
             break;
 
+        /* Carregar uma simulação salva do banco de dados e exibir os passos da simulação para o usuário. */
         case "2":
 
+            /* Exibir mensagem informando que o usuário está selecionando uma simulação para replay. */
             Console.WriteLine("Selecionar simulação para replay");
             Console.WriteLine();
 
+            /* Criar uma instância do GravadorUniversoBD para interagir com o banco de dados. */
             GravadorUniversoBD gravadorBD =
                 new GravadorUniversoBD();
 
+            /* Listar todas as simulações salvas no banco de dados. */
             List<GravadorUniversoBD.ResumoSimulacao> simulacoesSalvas =
                 gravadorBD.ListarSimulacoes();
 
+            /* Verificar se há simulações salvas no banco de dados. 
+             * Caso não haja, exibir uma mensagem informando que nenhuma simulação foi encontrada. */
             if (simulacoesSalvas.Count == 0)
             {
+                /* Exibir mensagem informando que nenhuma simulação foi encontrada no banco de dados. */
                 Console.WriteLine(
                     "Nenhuma simulação foi encontrada no banco de dados.");
                 break;
             }
 
+            /* Exibir a lista de simulações salvas, mostrando o nome, ID, 
+             * quantidade de corpos, quantidade de iterações e data de criação. */
             for (int i = 0; i < simulacoesSalvas.Count; i++)
             {
+                /* Obter a simulação atual da lista de simulações salvas. */
                 GravadorUniversoBD.ResumoSimulacao simulacao =
                     simulacoesSalvas[i];
 
+                /* Exibir as informações da simulação atual, 
+                 * incluindo o nome, ID, quantidade de corpos, quantidade de iterações e data de criação. */
                 Console.WriteLine(
                     $"{i + 1} - {simulacao.Nome} " +
                     $"(ID: {simulacao.Id}, corpos: {simulacao.QuantidadeCorpos}, " +
@@ -269,12 +292,15 @@ while (continuar)
                     $"criada em: {simulacao.DataCriacao:dd/MM/yyyy HH:mm})");
             }
 
+            /* Exibir a opção para voltar ao menu principal. */
             Console.WriteLine("0 - Voltar");
             Console.WriteLine();
             Console.Write("Escolha uma simulação: ");
 
+            /* Ler a escolha do usuário e validar se é um número válido. */
             int escolhaSimulacao;
 
+            /* Continuar solicitando ao usuário que digite um número válido até que ele forneça uma entrada correta. */
             while (!int.TryParse(
                 Console.ReadLine(),
                 out escolhaSimulacao))
@@ -282,34 +308,45 @@ while (continuar)
                 Console.Write("Digite um número válido: ");
             }
 
+            /* Verificar se o usuário escolheu voltar ao menu principal. */
             if (escolhaSimulacao == 0)
             {
+                /* Caso o usuário escolha voltar ao menu principal, 
+                 * definir a variável aguardarEnter como false para não aguardar ENTER antes de voltar ao menu. */
                 aguardarEnter = false;
                 Console.Clear();
                 break;
             }
 
+            /* Verificar se a escolha do usuário é válida, ou seja, se está dentro do intervalo das simulações salvas. */
             if (escolhaSimulacao < 1 ||
                 escolhaSimulacao > simulacoesSalvas.Count)
             {
+                /* Caso a escolha do usuário seja inválida, exibir uma mensagem informando que a opção é inválida. */
                 Console.WriteLine("Opção inválida.");
                 break;
             }
 
+            /* Obter a simulação selecionada pelo usuário com base na escolha feita. */
             GravadorUniversoBD.ResumoSimulacao simulacaoSelecionada =
                 simulacoesSalvas[escolhaSimulacao - 1];
 
+            /* Exibir mensagem informando que o replay da simulação selecionada está sendo iniciado. */
             for (int passo = 1;
                  passo <= simulacaoSelecionada.QuantidadeIteracoes;
                  passo++)
             {
+                /* Carregar os corpos do passo atual da simulação selecionada do banco de dados. */
                 List<Corpo> corposPasso =
                     gravadorBD.CarregarPasso(
                         simulacaoSelecionada.Id,
                         passo);
 
+                /*  Verificar se não foram encontrados corpos para o passo atual da simulação. 
+                 * Caso não haja corpos, exibir uma mensagem informando que não foram encontrados corpos para o passo e encerrar o loop. */
                 if (corposPasso.Count == 0)
                 {
+                    /* Exibir mensagem informando que não foram encontrados corpos para o passo atual da simulação. */
                     Console.WriteLine(
                         $"Não foram encontrados corpos para o passo {passo}.");
                     break;
@@ -317,6 +354,7 @@ while (continuar)
 
                 Console.Clear();
 
+                /* Exibir informações sobre a simulação selecionada, incluindo o nome da simulação e o passo atual em relação à quantidade total de iterações. */
                 Console.WriteLine(
                     $"Replay: {simulacaoSelecionada.Nome}");
                 Console.WriteLine(
@@ -324,6 +362,8 @@ while (continuar)
                     $"{simulacaoSelecionada.QuantidadeIteracoes}");
                 Console.WriteLine();
 
+                /* Exibir as informações de cada corpo no passo atual da simulação, 
+                 * incluindo o nome do corpo, posição e velocidade. */
                 foreach (Corpo corpo in corposPasso)
                 {
                     Console.WriteLine(
@@ -332,9 +372,11 @@ while (continuar)
                         $"Velocidade: ({corpo.VelX:F4}, {corpo.VelY:F4})");
                 }
 
+                /* Solicitar ao usuário que pressione ENTER para mostrar o próximo passo da simulação, 
+                 * caso ainda haja passos restantes. */
                 if (passo < simulacaoSelecionada.QuantidadeIteracoes)
                 {
-
+                    /* Exibir uma linha em branco para separar a exibição dos corpos do prompt de entrada. */
                     Console.WriteLine();
                     Console.WriteLine(
                         "Pressione ENTER para mostrar o próximo passo.");
@@ -344,17 +386,23 @@ while (continuar)
 
             break;
 
+        /* Selecionar e apagar uma simulação salva do banco de dados. */
         case "3":
 
+            /* Exibir mensagem informando que o usuário está selecionando uma simulação para apagar. */
             Console.WriteLine("Selecionar e apagar simulação");
             Console.WriteLine();
 
+            /* Criar uma instância do GravadorUniversoBD para interagir com o banco de dados. */
             GravadorUniversoBD gravadorExcluirBD =
                 new GravadorUniversoBD();
 
+            /* Listar todas as simulações salvas no banco de dados para que o usuário possa escolher qual deseja apagar. */
             List<GravadorUniversoBD.ResumoSimulacao> simulacoesParaExcluir =
                 gravadorExcluirBD.ListarSimulacoes();
 
+            /* Verificar se há simulações salvas no banco de dados. 
+             * Caso não haja, exibir uma mensagem informando que nenhuma simulação foi encontrada. */
             if (simulacoesParaExcluir.Count == 0)
             {
                 Console.WriteLine(
@@ -362,8 +410,11 @@ while (continuar)
                 break;
             }
 
+            /* Exibir a lista de simulações salvas, mostrando o nome, ID 
+             * e data de criação para que o usuário possa escolher qual deseja apagar. */
             for (int i = 0; i < simulacoesParaExcluir.Count; i++)
             {
+                /*  Obter a simulação atual da lista de simulações salvas para exclusão. */
                 GravadorUniversoBD.ResumoSimulacao simulacao =
                     simulacoesParaExcluir[i];
 
@@ -373,12 +424,15 @@ while (continuar)
                     $"{simulacao.DataCriacao:dd/MM/yyyy HH:mm})");
             }
 
+            /* Exibir a opção para voltar ao menu principal. */
             Console.WriteLine("0 - Voltar");
             Console.WriteLine();
             Console.Write("Escolha uma simulação para apagar: ");
 
+            /* Ler a escolha do usuário e validar se é um número válido. */
             int escolhaApagar;
 
+            /* Continuar solicitando ao usuário que digite um número válido até que ele forneça uma entrada correta. */
             while (!int.TryParse(
                 Console.ReadLine(),
                 out escolhaApagar))
@@ -386,13 +440,17 @@ while (continuar)
                 Console.Write("Digite um número válido: ");
             }
 
+            /* Verificar se o usuário escolheu voltar ao menu principal. */
             if (escolhaApagar == 0)
             {
+                /*  Caso o usuário escolha voltar ao menu principal, 
+                 *  definir a variável aguardarEnter como false para não aguardar ENTER antes de voltar ao menu. */
                 aguardarEnter = false;
                 Console.Clear();
                 break;
             }
 
+            /* Verificar se a escolha do usuário é válida, ou seja, se está dentro do intervalo das simulações salvas. */
             if (escolhaApagar < 1 ||
                 escolhaApagar > simulacoesParaExcluir.Count)
             {
@@ -400,14 +458,20 @@ while (continuar)
                 break;
             }
 
+            /* Obter a simulação selecionada pelo usuário para exclusão com base na escolha feita. */
             GravadorUniversoBD.ResumoSimulacao simulacaoParaExcluir =
                 simulacoesParaExcluir[escolhaApagar - 1];
 
+            /* Solicitar ao usuário que confirme a exclusão da simulação selecionada, 
+             * exibindo o nome da simulação para que ele possa confirmar ou cancelar a operação. */
             Console.Write(
                 $"Confirma a exclusão de '{simulacaoParaExcluir.Nome}'? (S/N): ");
 
+            /* Ler a entrada do usuário para confirmar ou cancelar a exclusão da simulação. */
             string? confirmacaoExclusao = Console.ReadLine();
 
+            /* Verificar se o usuário confirmou a exclusão da simulação. 
+             * Caso o usuário não confirme, exibir uma mensagem informando que a exclusão foi cancelada. */
             if (confirmacaoExclusao == null ||
                 confirmacaoExclusao.Trim().ToUpper() != "S")
             {
@@ -415,14 +479,18 @@ while (continuar)
                 break;
             }
 
+            /* Chamar o método ExcluirSimulacao do GravadorUniversoBD para apagar a simulação selecionada do banco de dados. 
+             * O método retorna true se a exclusão foi bem-sucedida, ou false caso contrário. */
             bool simulacaoExcluida =
                 gravadorExcluirBD.ExcluirSimulacao(
                     simulacaoParaExcluir.Id);
 
+            /* Exibir uma mensagem informando se a simulação foi apagada com sucesso ou se não foi encontrada no banco de dados. */
             if (simulacaoExcluida)
             {
                 Console.WriteLine(
                     "Simulação e dados associados apagados com sucesso.");
+            /* Aguardar ENTER antes de voltar ao menu principal. */
             }
             else
             {
@@ -432,17 +500,23 @@ while (continuar)
 
             break;
 
+        /* Apagar todas as simulações salvas no banco de dados. */
         case "4":
 
+            /* Exibir mensagem informando que o usuário está prestes a apagar todas as simulações salvas no banco de dados. */
             Console.WriteLine("Apagar todas as simulações");
             Console.WriteLine();
 
+            /* Criar uma instância do GravadorUniversoBD para interagir com o banco de dados. */
             GravadorUniversoBD gravadorApagarTodasBD =
                 new GravadorUniversoBD();
 
+            /* Listar todas as simulações salvas no banco de dados para que o usuário possa confirmar a exclusão de todas elas. */
             List<GravadorUniversoBD.ResumoSimulacao> simulacoesParaApagar =
                 gravadorApagarTodasBD.ListarSimulacoes();
 
+            /* Verificar se há simulações salvas no banco de dados. 
+             * Caso não haja, exibir uma mensagem informando que nenhuma simulação foi encontrada. */
             if (simulacoesParaApagar.Count == 0)
             {
                 Console.WriteLine(
@@ -450,6 +524,8 @@ while (continuar)
                 break;
             }
 
+            /* Solicitar ao usuário que confirme a exclusão de todas as simulações salvas, 
+             * exibindo a quantidade de simulações que serão apagadas para que ele possa confirmar ou cancelar a operação. */
             Console.WriteLine(
                 $"Isso vai apagar {simulacoesParaApagar.Count} simulação(ões) " +
                 "e os dados associados.");
@@ -457,6 +533,8 @@ while (continuar)
 
             string? confirmacaoApagarTodas = Console.ReadLine();
 
+            /* Verificar se o usuário confirmou a exclusão de todas as simulações. 
+             * Caso o usuário não confirme, exibir uma mensagem informando que a operação foi cancelada. */
             if (confirmacaoApagarTodas == null ||
                 confirmacaoApagarTodas.Trim().ToUpper() != "S")
             {
@@ -464,22 +542,28 @@ while (continuar)
                 break;
             }
 
+            /* Chamar o método ExcluirTodasSimulacoes do GravadorUniversoBD para apagar todas as simulações salvas no banco de dados. 
+             * O método retorna a quantidade de simulações apagadas. */
             int quantidadeApagada =
                 gravadorApagarTodasBD.ExcluirTodasSimulacoes();
 
+            /* Exibir uma mensagem informando a quantidade de simulações apagadas com sucesso. */
             Console.WriteLine(
                 $"{quantidadeApagada} simulação(ões) apagada(s) com sucesso.");
 
             break;
     }
 
+    /* Aguardar o usuário pressionar ENTER antes de voltar ao menu principal, caso a operação tenha sido concluída com sucesso. */
     if (continuar && aguardarEnter)
     {
+        /* Exibir uma linha em branco para separar a exibição das mensagens do prompt de entrada. */
         Console.WriteLine();
         Console.WriteLine(
             "Pressione ENTER para voltar ao menu."
         );
 
+        /* Aguardar o usuário pressionar ENTER antes de voltar ao menu principal. */
         Console.ReadLine();
         Console.Clear();
     }

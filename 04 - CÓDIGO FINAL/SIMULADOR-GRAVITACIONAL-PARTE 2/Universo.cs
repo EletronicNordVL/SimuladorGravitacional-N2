@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading.Tasks;
+using System.Threading.Tasks; 
 namespace TrabalhoN2;
 
 /* Essa classe representa o universo, contendo uma lista de corpos e métodos para calcular forças, atualizar posições e tratar colisões. */
@@ -54,13 +54,16 @@ public class Universo
         Corpo corpo1,
         Corpo corpo2)
     {
+        /* Calcula a distância entre os corpos usando o método CalcularDistancia. */
         double distancia = CalcularDistancia(corpo1, corpo2);
 
+        /* Evita divisão por zero caso os corpos estejam na mesma posição. */
         if (distancia == 0)
         {
             return 0;
         }
 
+        /* Aplica a fórmula da força gravitacional: F = G * (m1 * m2) / r² */
         return G * corpo1.Massa * corpo2.Massa
                / (distancia * distancia);
     }
@@ -68,32 +71,39 @@ public class Universo
     /* Calcula a força gravitacional resultante sobre os corpos usando Parallel.For. */
     public void CalcularForcas()
     {
+        /* Zera as forças resultantes antes de calcular as novas forças. */
         Parallel.For(0, Corpos.Count, i =>
         {
+            /* Obtém o corpo atual da iteração. */
             Corpo corpo1 = Corpos[i];
             double acumuladorForcaX = 0;
             double acumuladorForcaY = 0;
 
+            /* Calcula a força gravitacional entre o corpo atual e todos os outros corpos. */
             for (int j = 0; j < Corpos.Count; j++)
             {
                 if (i == j) continue;
 
                 Corpo corpo2 = Corpos[j];
 
+                /* Calcula a diferença de posição entre os corpos para determinar a direção da força. */
                 double deltaX = corpo2.PosX - corpo1.PosX;
                 double deltaY = corpo2.PosY - corpo1.PosY;
                 double distancia = CalcularDistancia(corpo1, corpo2);
 
                 if (distancia == 0) continue;
 
+                /* Calcula a força gravitacional entre os dois corpos e a projeta nas direções X e Y. */
                 double forca = CalcularForcaGravitacional(corpo1, corpo2);
                 double direcaoX = deltaX / distancia;
                 double direcaoY = deltaY / distancia;
 
+                /* Acumula as componentes da força resultante sobre o corpo atual. */
                 acumuladorForcaX += forca * direcaoX;
                 acumuladorForcaY += forca * direcaoY;
             }
 
+            /* Atualiza as forças resultantes do corpo atual com os valores acumulados. */
             corpo1.ForcaX = acumuladorForcaX;
             corpo1.ForcaY = acumuladorForcaY;
         });
@@ -102,16 +112,22 @@ public class Universo
     /* Atualiza velocidade e posição dos corpos em cada iteração utilizando MRUV em paralelo. */
     public void AtualizarPosicoes(double tempoEntreIteracoes)
     {
+        /* Utiliza Parallel.For para atualizar a posição e velocidade de cada corpo em paralelo, 
+         * aproveitando múltiplos núcleos de CPU. */
         Parallel.For(0, Corpos.Count, i =>
         {
+            /* Obtém o corpo atual da iteração. */
             Corpo corpo = Corpos[i];
 
+            /* Calcula a aceleração dos corpos com base na força resultante e na massa. */
             corpo.AceleracaoX = corpo.ForcaX / corpo.Massa;
             corpo.AceleracaoY = corpo.ForcaY / corpo.Massa;
 
+            /* Atualiza a posição dos corpos com base na velocidade, aceleração e no tempo entre iterações. */
             corpo.PosX += corpo.VelX * tempoEntreIteracoes + (corpo.AceleracaoX / 2.0) * (tempoEntreIteracoes * tempoEntreIteracoes);
             corpo.PosY += corpo.VelY * tempoEntreIteracoes + (corpo.AceleracaoY / 2.0) * (tempoEntreIteracoes * tempoEntreIteracoes);
 
+            /* Atualiza a velocidade dos corpos com base na aceleração e no tempo entre iterações. */
             corpo.VelX += corpo.AceleracaoX * tempoEntreIteracoes;
             corpo.VelY += corpo.AceleracaoY * tempoEntreIteracoes;
         });
@@ -128,6 +144,7 @@ public class Universo
             raios[k] = Corpos[k].Raio;
         }
 
+        /* Percorre todos os pares de corpos para verificar colisões. */
         for (int i = 0; i < Corpos.Count; i++)
         {
             for (int j = i + 1; j < Corpos.Count; j++)
@@ -259,6 +276,7 @@ public class Universo
         double tempoEntreIteracoes,
         string? nomeSimulacao = null)
     {
+        /* Configura a quantidade de iterações e o tempo entre elas. */
         this.QuantidadeIteracoes = iteracoes;
         this.TempoEntreIteracoes = tempoEntreIteracoes;
 
@@ -285,6 +303,7 @@ public class Universo
 
             double tempoDecorrido = 0;
 
+            /* Executa as iterações da simulação, calculando forças, atualizando posições e tratando colisões. */
             for (int i = 1; i <= iteracoes; i++)
             {
                 tempoDecorrido += tempoEntreIteracoes;
@@ -312,8 +331,11 @@ public class Universo
             cronometro.Stop();
         }
 
+        /* Calcula o tempo total gasto nas fases de cálculo de forças, atualização de posições e tratamento de colisões. */
         TimeSpan calculo = tempoForcas.Elapsed + tempoPosicoes.Elapsed + tempoColisoes.Elapsed;
 
+        /* Exibe o tempo total da simulação e o tempo gasto em cada fase (cálculo de forças, 
+         * atualização de posições, tratamento de colisões e gravação no banco). */
         Console.WriteLine();
         Console.WriteLine($"[DESEMPENHO N2] Tempo total: {cronometro.Elapsed.TotalMilliseconds:F2} ms ({cronometro.Elapsed.TotalSeconds:F2} s)");
         Console.WriteLine($"  Cálculo (forças + posições + colisões): {calculo.TotalMilliseconds:F2} ms");
