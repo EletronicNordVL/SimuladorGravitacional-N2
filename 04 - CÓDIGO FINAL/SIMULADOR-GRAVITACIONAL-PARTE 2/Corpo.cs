@@ -44,6 +44,7 @@ public class Corpo
                     "A massa deve ser maior que zero.");
 
             massa = value;
+            AtualizarRaio();
         }
     }
 
@@ -68,6 +69,7 @@ public class Corpo
             }
 
             densidade = value;
+            AtualizarRaio();
         }
     }
 
@@ -82,9 +84,11 @@ public class Corpo
     public double AceleracaoX { get; set; } /* Aceleração no eixo X, em metros por segundo ao quadrado (m/s²) */
     public double AceleracaoY { get; set; } /* Aceleração no eixo Y, em metros por segundo ao quadrado (m/s²) */
 
-    /* O raio não é armazenado separadamente porque depende */
-    /* diretamente da massa e da densidade do corpo. */
-    public double Raio => CalcularRaio();
+    /* Raio do corpo, em metros (m). Depende só de massa e densidade, então é recalculado
+     * apenas quando uma das duas muda (nos setters) e guardado neste campo. Assim, ler
+     * Raio custa uma leitura de campo em vez de uma raiz cúbica a cada acesso. */
+    private double raio;
+    public double Raio => raio;
 
     /* Construtor da classe Corpo. */
     public Corpo(
@@ -106,15 +110,20 @@ public class Corpo
         VelY = velY;
     }
 
-    /* Função privada que calcula o raio do corpo com base na massa e densidade. */
-    private double CalcularRaio()
+    /* Recalcula o raio com base na massa e densidade e o guarda no campo "raio". */
+    private void AtualizarRaio()
     {
+        /* No construtor, a massa é definida antes da densidade. Enquanto uma das duas
+         * ainda for zero não há raio a calcular (e isso evita dividir por zero). */
+        if (massa <= 0 || densidade <= 0)
+        {
+            return;
+        }
+
         /* A partir da densidade (d = m/v), isolamos o volume: v = m/d */
-        double volume = Massa / Densidade;
+        double volume = massa / densidade;
 
         /* Considerando que o corpo é uma esfera, a fórmula do volume é V = (4/3) * PI * r^3. Logo, se isolarmos o raio, temos a raiz cúbica de (3 * V) / (4 * PI) */
-        return Math.Cbrt(
-            (3 * volume) / (4 * Math.PI)
-        );
+        raio = Math.Cbrt((3 * volume) / (4 * Math.PI));
     }
 }
