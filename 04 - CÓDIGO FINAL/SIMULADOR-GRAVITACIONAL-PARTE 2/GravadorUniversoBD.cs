@@ -120,12 +120,15 @@ private const int LinhasPorBloco = 500;
                          * gerado no mapa de corpos. */
                         using (MySqlCommand cmdCorpo = new MySqlCommand(sqlCorpo, conexao, transacao))
                         {
+                            /* Adiciona os parâmetros necessários para a inserção do corpo no banco de dados, 
+                             * incluindo o ID da simulação atual, nome do corpo, massa e densidade. */
                             cmdCorpo.Parameters.AddWithValue("@idSimulacao", this.idSimulacaoAtual);
                             cmdCorpo.Parameters.AddWithValue("@nome", corpo.Nome);
                             cmdCorpo.Parameters.AddWithValue("@massa", corpo.Massa);
                             cmdCorpo.Parameters.AddWithValue("@densidade", corpo.Densidade);
                             cmdCorpo.ExecuteNonQuery();
 
+                            /* Obtém o ID gerado para o corpo recém-inserido e armazena no mapa de corpos. */
                             int idCorpoGerado = (int)cmdCorpo.LastInsertedId;
                             mapaIdCorpos[corpo] = idCorpoGerado;
                         }
