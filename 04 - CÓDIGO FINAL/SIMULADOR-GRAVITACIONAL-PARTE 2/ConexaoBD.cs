@@ -22,7 +22,9 @@ public static class ConexaoBD
         {
             /* Lança uma exceção informando que a variável de conexão com o MySQL não foi configurada. */
             throw new InvalidOperationException(
-                "A variável de conexão com o MySQL não foi configurada.");
+            "A variável de ambiente SIMULADOR_DB_CONNECTION não está configurada. " +
+            "Defina-a com a string de conexão do MySQL e reinicie o Visual Studio " +
+            "(ou o terminal) para que o programa enxergue o novo valor.");
         }
 
         /* Cria uma nova instância de MySqlConnection usando a string de conexão obtida. */
@@ -37,12 +39,10 @@ public static class ConexaoBD
             return conexao;
         }
         /* Captura qualquer exceção que ocorra ao tentar abrir a conexão. */
-        catch (Exception ex)
+        catch
         {
-            /* Exibe uma mensagem de erro no console informando que houve uma falha ao conectar ao MySQL, 
-             * incluindo a mensagem da exceção capturada. */
-            Console.WriteLine($"[ERRO BD] Falha ao conectar ao MySQL: {ex.Message}");
-            /* Descarta a conexão aberta (se houver) e lança a exceção novamente para que o chamador possa lidar com ela. */
+            /* Descarta a conexão e relança a exceção original. Quem exibe o erro ao
+             * usuário é o Program.cs (try/catch do menu), para a mensagem não repetir. */
             conexao.Dispose();
             throw;
         }
