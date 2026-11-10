@@ -33,6 +33,7 @@ public class Universo
     /* Adiciona um corpo ao universo. */
     public void AdicionarCorpo(Corpo corpo)
     {
+        /* Adiciona o corpo à lista de corpos do universo. */
         Corpos.Add(corpo);
     }
 
@@ -133,6 +134,7 @@ public class Universo
         });
     }
 
+    /* Trata colisões entre os corpos, ajustando posições e velocidades conforme necessário. */
     public void TratarColisoes()
     {
         /* O raio depende só de massa e densidade (não muda no laço), mas Raio é uma
@@ -263,6 +265,7 @@ public class Universo
     {
         foreach (Corpo corpo in Corpos)
         {
+            /* Exibe o nome, posição e velocidade de cada corpo com quatro casas decimais. */
             Console.WriteLine(
                 $"{corpo.Nome} - " +
                 $"Posição: ({corpo.PosX:F4}, {corpo.PosY:F4}) - " +
@@ -292,6 +295,8 @@ public class Universo
         Stopwatch tempoPosicoes = new Stopwatch();
         Stopwatch tempoColisoes = new Stopwatch();
 
+        /* Bloco de Try -Finally para garantir que o gravador finalize a simulação e 
+         * feche a conexão com o banco, mesmo se ocorrer algum erro durante a execução. */
         try
         {
             /* Iniciar o registro no Banco de Dados MySQL */
@@ -301,21 +306,26 @@ public class Universo
              * mostra a configuração de partida (forças e acelerações ainda zeradas). */
             gravador.GravarPasso(0, 0, Corpos);
 
+            /* Variável para acumular o tempo decorrido da simulação. */
             double tempoDecorrido = 0;
 
             /* Executa as iterações da simulação, calculando forças, atualizando posições e tratando colisões. */
             for (int i = 1; i <= iteracoes; i++)
             {
+                /* Atualiza o tempo decorrido com base no tempo entre iterações. */
                 tempoDecorrido += tempoEntreIteracoes;
 
+                /* Calcula as forças gravitacionais entre os corpos. */
                 tempoForcas.Start();
                 CalcularForcas();
                 tempoForcas.Stop();
 
+                /* Atualiza a posição e velocidade dos corpos com base nas forças calculadas. */
                 tempoPosicoes.Start();
                 AtualizarPosicoes(tempoEntreIteracoes);
                 tempoPosicoes.Stop();
 
+                /* Tratar colisões entre os corpos, se houver. */
                 tempoColisoes.Start();
                 TratarColisoes();
                 tempoColisoes.Stop();
@@ -324,6 +334,8 @@ public class Universo
                 gravador.GravarPasso(i, tempoDecorrido, Corpos);
             }
         }
+        /* Finally garante que o gravador finalize a simulação e 
+         * feche a conexão com o banco, mesmo se ocorrer algum erro durante a execução. */
         finally
         {
             /* Grava o último bloco pendente e fecha a conexão, mesmo se der erro no meio. */
