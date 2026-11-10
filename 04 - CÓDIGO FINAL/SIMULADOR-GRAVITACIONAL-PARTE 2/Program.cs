@@ -444,6 +444,7 @@ while (continuar)
                     GravadorUniversoBD.ResumoSimulacao simulacao =
                         simulacoesParaExcluir[i];
 
+                    /* Exibir as informações da simulação atual, incluindo o nome, ID e data de criação. */
                     Console.WriteLine(
                         $"{i + 1} - {simulacao.Nome} " +
                         $"(ID: {simulacao.Id}, criada em: " +
@@ -524,7 +525,7 @@ while (continuar)
                     Console.WriteLine(
                         "A simulação não foi encontrada no banco.");
                 }
-
+                /* Aguardar ENTER antes de voltar ao menu principal, caso a operação tenha sido concluída com sucesso. */
                 break;
 
             /* Apagar todas as simulações salvas no banco de dados. */
@@ -577,7 +578,6 @@ while (continuar)
                 /* Exibir uma mensagem informando a quantidade de simulações apagadas com sucesso. */
                 Console.WriteLine(
                     $"{quantidadeApagada} simulação(ões) apagada(s) com sucesso.");
-
                 break;
         }
 
