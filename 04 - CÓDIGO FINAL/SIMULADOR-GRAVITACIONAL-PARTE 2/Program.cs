@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
+using System.Threading;
 using SimuladorGravitacional_N2;
 using TrabalhoN2;
 
@@ -35,7 +35,8 @@ while (continuar)
     /* Controlar se deve aguardar ENTER antes de voltar ao menu. */
     bool aguardarEnter = true;
 
-    /* Executar a opção escolhida pelo usuário. */
+    /* Tentar executar a operação escolhida pelo usuário, capturando 
+     * qualquer exceção que possa ocorrer durante a execução. */
     try
     {
         switch (opcao)
@@ -333,6 +334,11 @@ while (continuar)
                 GravadorUniversoBD.ResumoSimulacao simulacaoSelecionada =
                     simulacoesSalvas[escolhaSimulacao - 1];
 
+                /* Perguntar se o replay avança sozinho ou passo a passo (ENTER). */
+                Console.Write("Reprodução automática? (S = automática, N = passo a passo): ");
+                bool replayAutomatico =
+                    (Console.ReadLine() ?? string.Empty).Trim().ToUpper() == "S";
+
                 /* Exibir mensagem informando que o replay da simulação selecionada está sendo iniciado. */
                 for (int passo = 1;
                      passo <= simulacaoSelecionada.QuantidadeIteracoes;
@@ -374,11 +380,29 @@ while (continuar)
                             $"Velocidade: ({corpo.VelX:F4}, {corpo.VelY:F4})");
                     }
 
-                    /* Solicitar ao usuário que pressione ENTER para mostrar o próximo passo da simulação, 
-                     * caso ainda haja passos restantes. */
-                    if (passo < simulacaoSelecionada.QuantidadeIteracoes)
+                    /* Verificar se o replay deve avançar automaticamente ou passo a passo. 
+                     * Caso seja automático, aguardar um curto período de tempo entre os passos e permitir que o usuário interrompa o replay pressionando ESC. 
+                     * Caso seja passo a passo, aguardar o usuário pressionar ENTER para mostrar o próximo passo. */
+                    if (replayAutomatico)
                     {
-                        /* Exibir uma linha em branco para separar a exibição dos corpos do prompt de entrada. */
+                        /* Pausa curta entre os passos; ESC interrompe o replay. */
+                        Console.WriteLine();
+                        Console.WriteLine("Pressione ESC para interromper.");
+                        Thread.Sleep(300);
+
+                        /* Verificar se o usuário pressionou a tecla ESC para interromper o replay. */
+                        if (Console.KeyAvailable &&
+                            Console.ReadKey(true).Key == ConsoleKey.Escape)
+                        {
+                            /* Exibir mensagem informando que o replay foi interrompido e encerrar o loop. */
+                            Console.WriteLine("Replay interrompido.");
+                            break;
+                        }
+                    }
+                    /* Caso o replay seja passo a passo, aguardar o usuário pressionar ENTER para mostrar o próximo passo. */
+                    else if (passo < simulacaoSelecionada.QuantidadeIteracoes)
+                    {
+                        /* Exibir uma linha em branco para separar a exibição das mensagens do prompt de entrada. */
                         Console.WriteLine();
                         Console.WriteLine(
                             "Pressione ENTER para mostrar o próximo passo.");
@@ -490,12 +514,13 @@ while (continuar)
                 /* Exibir uma mensagem informando se a simulação foi apagada com sucesso ou se não foi encontrada no banco de dados. */
                 if (simulacaoExcluida)
                 {
+                    /* Exibir mensagem informando que a simulação e os dados associados foram apagados com sucesso. */
                     Console.WriteLine(
                         "Simulação e dados associados apagados com sucesso.");
-                    /* Aguardar ENTER antes de voltar ao menu principal. */
                 }
                 else
                 {
+                    /* Exibir mensagem informando que a simulação não foi encontrada no banco de dados. */
                     Console.WriteLine(
                         "A simulação não foi encontrada no banco.");
                 }
@@ -571,6 +596,8 @@ while (continuar)
         }
 
     }
+    /* Capturar qualquer exceção que ocorra durante a execução das operações do menu 
+     * e exibir uma mensagem de erro para o usuário. */
     catch (Exception ex)
     {
         Console.WriteLine();
