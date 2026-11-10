@@ -162,13 +162,20 @@ private const int LinhasPorBloco = 500;
     /* Exclui todas as simulações do banco de dados. Retorna o número de linhas afetadas. */
     public int ExcluirTodasSimulacoes()
     {
+        /* Consulta SQL para excluir todas as simulações da tabela Simulacao. 
+         * A exclusão é feita de forma que todas as linhas associadas a cada simulação 
+         * sejam removidas devido às restrições de chave estrangeira. */
         string sql = "DELETE FROM Simulacao;";
 
+        /* Abre uma conexão com o banco de dados e executa a exclusão de todas as simulações. 
+         * Após a exclusão, o estado da simulação atual é limpo. */
         using (MySqlConnection conexao = ConexaoBD.ObterConexao())
         using (MySqlCommand cmd = new MySqlCommand(sql, conexao))
         {
+            /* Executa a exclusão de todas as simulações no banco de dados e retorna o número de linhas afetadas. 
+             * Após a exclusão, o estado da simulação atual é limpo. */
             int linhas = cmd.ExecuteNonQuery();
-            LimparEstadoDaSimulacaoAtual();      // <<< NOVO
+            LimparEstadoDaSimulacaoAtual(); 
             return linhas;
         }
     }
@@ -230,6 +237,7 @@ private const int LinhasPorBloco = 500;
         /* Propriedade para armazenar o tempo entre iterações na simulação. */
         public double TempoEntreIteracoes { get; set; }
 
+        /* Construtor da classe ResumoSimulacao, que inicializa o nome da simulação como uma string vazia. */
         public ResumoSimulacao()
         {
             Nome = string.Empty;
@@ -242,6 +250,7 @@ private const int LinhasPorBloco = 500;
     int idSimulacao,
     int numPasso)
     {
+        /* Lista para armazenar os corpos carregados do banco de dados. */
         List<Corpo> corpos = new List<Corpo>();
 
         /* Consulta do MySQL para obter o estado dos corpos em um determinado passo da simulação. 
@@ -263,6 +272,7 @@ private const int LinhasPorBloco = 500;
         using (MySqlConnection conexao = ConexaoBD.ObterConexao())
         using (MySqlCommand cmd = new MySqlCommand(sql, conexao))
         {
+            /* Adiciona os parâmetros necessários para a consulta, incluindo o ID da simulação e o número do passo. */
             cmd.Parameters.AddWithValue("@idSimulacao", idSimulacao);
             cmd.Parameters.AddWithValue("@numPasso", numPasso);
 
@@ -299,7 +309,7 @@ private const int LinhasPorBloco = 500;
                 }
             }
         }
-
+        /* Retorna a lista de corpos carregados do banco de dados para o passo especificado da simulação. */
         return corpos;
     }
 
@@ -308,6 +318,7 @@ private const int LinhasPorBloco = 500;
      * informações resumidas sobre cada simulação. */
     public List<ResumoSimulacao> ListarSimulacoes()
     {
+        /* Lista para armazenar os resumos das simulações encontradas no banco de dados. */
         List<ResumoSimulacao> simulacoes =
             new List<ResumoSimulacao>();
 
@@ -331,22 +342,29 @@ private const int LinhasPorBloco = 500;
              * quantidade de iterações e tempo entre iterações. */
             while (reader.Read())
             {
+                /* Cria um objeto ResumoSimulacao e preenche suas propriedades com os valores obtidos do banco de dados. */
                 ResumoSimulacao simulacao =
                     new ResumoSimulacao();
 
+                /* Atribui os valores obtidos do banco de dados às propriedades do objeto ResumoSimulacao. */
                 simulacao.Id =
                     reader.GetInt32("id_simulacao");
+                /* Atribui os valores obtidos do banco de dados às propriedades do objeto ResumoSimulacao. */
                 simulacao.Nome =
                     reader.GetString("nome");
+                /* Atribui os valores obtidos do banco de dados às propriedades do objeto ResumoSimulacao. */
                 simulacao.DataCriacao =
                     reader.GetDateTime("data_criacao");
+                /* Atribui os valores obtidos do banco de dados às propriedades do objeto ResumoSimulacao. */
                 simulacao.QuantidadeCorpos =
                     reader.GetInt32("qtd_corpos");
+                /* Atribui os valores obtidos do banco de dados às propriedades do objeto ResumoSimulacao. */
                 simulacao.QuantidadeIteracoes =
                     reader.GetInt32("qtd_iteracoes");
+                /* Atribui os valores obtidos do banco de dados às propriedades do objeto ResumoSimulacao. */
                 simulacao.TempoEntreIteracoes =
                     reader.GetDouble("tempo_entre_iteracoes");
-
+                /* Adiciona o objeto ResumoSimulacao à lista de simulações encontradas no banco de dados. */
                 simulacoes.Add(simulacao);
             }
         }
@@ -360,21 +378,33 @@ private const int LinhasPorBloco = 500;
     {
         if (idSimulacaoAtual == 0)
         {
+            /* Se a simulação atual não foi iniciada (idSimulacaoAtual é 0), 
+             * lança uma exceção indicando que é necessário iniciar uma simulação antes de gravar os passos. */
             throw new InvalidOperationException(
                 "Inicie uma simulação antes de gravar os passos.");
         }
 
+        /* Para cada corpo na lista de corpos fornecida, verifica se o corpo pertence à simulação atual 
+         * (usando o mapa de IDs de corpos). Se o corpo não pertencer à simulação, lança uma exceção. 
+         * Caso contrário, cria uma nova linha de estado (LinhaEstado) com as informações do corpo e adiciona 
+         * ao buffer de linhas a serem gravadas no banco de dados. */
         foreach (var corpo in corpos)
         {
+            /* Verifica se o corpo pertence à simulação atual, obtendo seu ID do mapa de corpos. 
+             * Se o corpo não estiver no mapa, lança uma exceção indicando que o corpo não pertence à simulação. */
             if (!mapaIdCorpos.TryGetValue(corpo, out int idCorpo))
             {
+                /* Lança uma exceção indicando que o corpo não pertence à simulação atual. */
                 throw new InvalidOperationException(
                     "Um dos corpos não pertence à simulação iniciada.");
             }
 
+            /* Cria uma nova linha de estado (LinhaEstado) com as informações do corpo e adiciona ao buffer de linhas. */
             bufferLinhas.Add(new LinhaEstado(idCorpo, numPasso, tempoDecorrido, corpo));
         }
 
+        /* Se o buffer de linhas acumuladas atingir ou exceder o limite definido por LinhasPorBloco, 
+         * chama o método DescarregarBuffer para gravar as linhas no banco de dados. */
         if (bufferLinhas.Count >= LinhasPorBloco)
         {
             DescarregarBuffer();
@@ -397,6 +427,8 @@ private const int LinhasPorBloco = 500;
             /* Abre a conexão só na primeira vez; depois ela é reaproveitada. */
             conexaoGravacao ??= ConexaoBD.ObterConexao();
 
+            /* Inicia uma transação para garantir que todas as operações de inserção sejam atômicas. 
+             * Se ocorrer algum erro durante a inserção, a transação será revertida. */
             using (MySqlTransaction transacao = conexaoGravacao.BeginTransaction())
             {
                 try
@@ -416,11 +448,15 @@ private const int LinhasPorBloco = 500;
                         /* Cada linha ganha parâmetros com sufixo próprio (@c0, @n0, @c1, ...) */
                         for (int i = 0; i < bufferLinhas.Count; i++)
                         {
+                            /* Obtém a linha de estado correspondente ao índice atual do buffer. */
                             LinhaEstado l = bufferLinhas[i];
 
+                            /* Adiciona uma vírgula entre os conjuntos de valores, exceto antes do primeiro conjunto. */
                             if (i > 0) sql.Append(',');
                             sql.Append($"(@c{i},@n{i},@t{i},@px{i},@py{i},@vx{i},@vy{i},@fx{i},@fy{i},@ax{i},@ay{i})");
 
+                            /* Adiciona os parâmetros correspondentes para cada linha do buffer, 
+                             * usando sufixos únicos para evitar conflitos. */
                             cmd.Parameters.AddWithValue($"@c{i}", l.CorpoId);
                             cmd.Parameters.AddWithValue($"@n{i}", l.NumPasso);
                             cmd.Parameters.AddWithValue($"@t{i}", l.TempoDecorrido);
@@ -434,13 +470,19 @@ private const int LinhasPorBloco = 500;
                             cmd.Parameters.AddWithValue($"@ay{i}", l.AceleracaoY);
                         }
 
+                        /* Define o texto do comando SQL com os valores acumulados no StringBuilder e executa a inserção em lote. */
                         cmd.CommandText = sql.ToString();
                         cmd.ExecuteNonQuery();
                     }
 
+                    /* Se todas as operações de inserção foram bem-sucedidas, a transação é confirmada, 
+                     * o buffer de linhas é limpo e o cronômetro de gravação é parado. */
                     transacao.Commit();
                     bufferLinhas.Clear();
                 }
+                /* Catch para capturar qualquer exceção que ocorra durante a inserção em lote. 
+                 * Em caso de erro, a transação é revertida, uma mensagem de erro é exibida no console 
+                 * e a exceção é relançada para tratamento posterior. */
                 catch (Exception ex)
                 {
                     transacao.Rollback();
@@ -451,11 +493,16 @@ private const int LinhasPorBloco = 500;
         }
         catch (Exception)
         {
+            /* Em caso de erro na gravação, define a flag erroNaGravacao como true para indicar que ocorreu um problema. 
+             * Isso impede que o FinalizarSimulacao tente gravar o que sobrou no buffer, 
+             * pois provavelmente falharia novamente. */
             erroNaGravacao = true;
             throw;
         }
         finally
         {
+            /* Para garantir que o cronômetro de gravação seja parado, mesmo em caso de erro, 
+             * o cronômetro é parado no bloco finally. */
             cronometroGravacao.Stop();
         }
     }
@@ -465,6 +512,8 @@ private const int LinhasPorBloco = 500;
      * na memória e o replay as perderia. */
     public void FinalizarSimulacao()
     {
+        /* Bloque try-finally para garantir que a conexão seja fechada e o buffer seja limpo, 
+         * mesmo em caso de erro na gravação. */
         try
         {
             if (!erroNaGravacao)
@@ -482,6 +531,7 @@ private const int LinhasPorBloco = 500;
     /* Fecha a conexão com o banco de dados, se estiver aberta. */
     private void FecharConexao()
     {
+        /* Se a conexão de gravação estiver aberta, ela é descartada e definida como nula para liberar recursos. */
         conexaoGravacao?.Dispose();
         conexaoGravacao = null;
     }
