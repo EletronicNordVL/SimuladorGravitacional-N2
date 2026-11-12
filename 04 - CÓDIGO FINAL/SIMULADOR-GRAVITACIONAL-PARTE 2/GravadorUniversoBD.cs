@@ -413,7 +413,7 @@ private const int LinhasPorBloco = 500;
 
     /* Grava no banco todas as linhas acumuladas, com UM INSERT de várias linhas
      * dentro de uma transação (ou grava o bloco inteiro, ou nada dele). */
-    private void DescarregarBuffer()
+    public void DescarregarBuffer()
     {
         if (bufferLinhas.Count == 0)
         {
