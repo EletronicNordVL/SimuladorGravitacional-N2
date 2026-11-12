@@ -107,34 +107,68 @@ public class Universo
             /* Atualiza as forças resultantes do corpo atual com os valores acumulados. */
             corpo1.ForcaX = acumuladorForcaX;
             corpo1.ForcaY = acumuladorForcaY;
-        });
+
+           /* Atualiza as acelerações com base nas forças resultantes. */
+           corpo1.AceleracaoX = corpo1.ForcaX / corpo1.Massa;
+           corpo1.AceleracaoY = corpo1.ForcaY / corpo1.Massa;
+    });
+
     }
 
-    /* Atualiza velocidade e posição dos corpos em cada iteração utilizando MRUV em paralelo. */
+    /* Atualiza posições e velocidades utilizando o método Velocity Verlet. */
     public void AtualizarPosicoes(double tempoEntreIteracoes)
     {
-        /* Utiliza Parallel.For para atualizar a posição e velocidade de cada corpo em paralelo, 
-         * aproveitando múltiplos núcleos de CPU. */
+        /* Validar o intervalo de tempo antes de iniciar os cálculos. */
+        if (tempoEntreIteracoes <= 0 ||
+            !double.IsFinite(tempoEntreIteracoes))
+        {
+            throw new ArgumentException(
+                "O intervalo de tempo deve ser positivo e finito.");
+        }
+
+        /* Armazenar as acelerações anteriores de cada corpo. */
+        double[] aceleracoesAnterioresX = new double[Corpos.Count];
+        double[] aceleracoesAnterioresY = new double[Corpos.Count];
+
+        /* Atualizar as posições dos corpos. */
         Parallel.For(0, Corpos.Count, i =>
         {
-            /* Obtém o corpo atual da iteração. */
             Corpo corpo = Corpos[i];
 
-            /* Calcula a aceleração dos corpos com base na força resultante e na massa. */
-            corpo.AceleracaoX = corpo.ForcaX / corpo.Massa;
-            corpo.AceleracaoY = corpo.ForcaY / corpo.Massa;
+            /* Guardar as acelerações calculadas antes da atualização. */
+            aceleracoesAnterioresX[i] = corpo.AceleracaoX;
+            aceleracoesAnterioresY[i] = corpo.AceleracaoY;
 
-            /* Atualiza a posição dos corpos com base na velocidade, aceleração e no tempo entre iterações. */
-            corpo.PosX += corpo.VelX * tempoEntreIteracoes + (corpo.AceleracaoX / 2.0) * (tempoEntreIteracoes * tempoEntreIteracoes);
-            corpo.PosY += corpo.VelY * tempoEntreIteracoes + (corpo.AceleracaoY / 2.0) * (tempoEntreIteracoes * tempoEntreIteracoes);
+            /* Atualizar a posição utilizando a aceleração anterior. */
+            corpo.PosX += corpo.VelX * tempoEntreIteracoes
+                + 0.5 * corpo.AceleracaoX
+                * tempoEntreIteracoes * tempoEntreIteracoes;
 
-            /* Atualiza a velocidade dos corpos com base na aceleração e no tempo entre iterações. */
-            corpo.VelX += corpo.AceleracaoX * tempoEntreIteracoes;
-            corpo.VelY += corpo.AceleracaoY * tempoEntreIteracoes;
+            corpo.PosY += corpo.VelY * tempoEntreIteracoes
+                + 0.5 * corpo.AceleracaoY
+                * tempoEntreIteracoes * tempoEntreIteracoes;
+        });
+
+        /* Recalcular as forças nas novas posições. */
+        CalcularForcas();
+
+        /* Atualiza as velocidades usando a média
+         * entre as acelerações anteriores e as novas acelerações. */
+        Parallel.For(0, Corpos.Count, i =>
+        {
+            Corpo corpo = Corpos[i];
+
+            corpo.VelX += 0.5 *
+                (aceleracoesAnterioresX[i] + corpo.AceleracaoX)
+                * tempoEntreIteracoes;
+
+            corpo.VelY += 0.5 *
+                (aceleracoesAnterioresY[i] + corpo.AceleracaoY)
+                * tempoEntreIteracoes;
         });
     }
 
-    /* Trata colisões entre os corpos, ajustando posições e velocidades conforme necessário. */
+    /* Tratar colisões entre os corpos, ajustando posições e velocidades conforme necessário. */
     public void TratarColisoes()
     {
         /* O raio depende só de massa e densidade (não muda no laço), mas Raio é uma
@@ -302,35 +336,42 @@ public class Universo
             /* Iniciar o registro no Banco de Dados MySQL */
             gravador.IniciarSimulacao(nomeSimulacao, Corpos, iteracoes, tempoEntreIteracoes);
 
-            /* Passo 0 = estado inicial, antes de qualquer iteração. Assim o replay
-             * mostra a configuração de partida (forças e acelerações ainda zeradas). */
+            /* Gravar o estado inicial, antes de qualquer iteração. */
             gravador.GravarPasso(0, 0, Corpos);
 
             /* Variável para acumular o tempo decorrido da simulação. */
             double tempoDecorrido = 0;
 
-            /* Executa as iterações da simulação, calculando forças, atualizando posições e tratando colisões. */
+            /* Calcular as forças iniciais antes da primeira iteração.
+             * O Velocity Verlet precisa das acelerações iniciais. */
+            tempoForcas.Start();
+            CalcularForcas();
+            tempoForcas.Stop();
+
+            /* Executar as iterações da simulação utilizando Velocity Verlet. */
             for (int i = 1; i <= iteracoes; i++)
             {
-                /* Atualiza o tempo decorrido com base no tempo entre iterações. */
+                /* Atualizar o tempo decorrido com base no tempo entre iterações. */
                 tempoDecorrido += tempoEntreIteracoes;
 
-                /* Calcula as forças gravitacionais entre os corpos. */
-                tempoForcas.Start();
-                CalcularForcas();
-                tempoForcas.Stop();
-
-                /* Atualiza a posição e velocidade dos corpos com base nas forças calculadas. */
+                /* Atualizar as posições e velocidades utilizando Velocity Verlet.
+                 * O método também recalcula as forças nas novas posições. */
                 tempoPosicoes.Start();
                 AtualizarPosicoes(tempoEntreIteracoes);
                 tempoPosicoes.Stop();
 
-                /* Tratar colisões entre os corpos, se houver. */
+                /* Tratar possíveis colisões entre os corpos. */
                 tempoColisoes.Start();
                 TratarColisoes();
                 tempoColisoes.Stop();
 
-                /* Gravar o histórico do passo no MySQL (acumula e grava em blocos) */
+                /* Recalcular as forças após o tratamento das colisões,
+                 * garantindo que estejam atualizadas para a próxima iteração. */
+                tempoForcas.Start();
+                CalcularForcas();
+                tempoForcas.Stop();
+
+                /* Gravar o histórico do passo no MySQL. */
                 gravador.GravarPasso(i, tempoDecorrido, Corpos);
             }
         }
